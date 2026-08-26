@@ -290,7 +290,33 @@
         </div>
 
         <section class="simulation-settings">
+          <div class="mode-row">
+            <span class="mode-label">博弈类型</span>
+            <div class="mode-switch">
+              <button id="mode-pd-btn" class="mode-btn is-active" data-mode="pd" type="button">囚徒困境</button>
+              <button id="mode-threshold-btn" class="mode-btn" data-mode="threshold" type="button">临界合作</button>
+            </div>
+          </div>
+
           <div class="settings-grid">
+            <div class="setting-block">
+              <div class="setting-head">
+                <label for="agent-count-slider">智能体数量</label>
+                <strong id="agent-count-value">5</strong>
+              </div>
+              <input id="agent-count-slider" type="range" min="2" max="12" step="1" value="5">
+              <p class="setting-hint">参与模拟的智能体数量。</p>
+            </div>
+
+            <div class="setting-block">
+              <div class="setting-head">
+                <label for="rationality-slider">理性程度</label>
+                <strong id="rationality-value">80</strong>
+              </div>
+              <input id="rationality-slider" type="range" min="0" max="100" step="1" value="80">
+              <p class="setting-hint">越高越理性，越坚定地选择预期收益更高的动作。</p>
+            </div>
+
             <div class="setting-block">
               <div class="setting-head">
                 <label for="benefit-slider">合作带来的收益 b</label>
@@ -319,7 +345,7 @@
             </div>
           </div>
 
-          <p class="settings-warning">为保证符合囚徒困境：收益 b 必须大于成本 c，且两者都大于 0。</p>
+          <p id="lesson3-mode-description" class="settings-warning">当前为囚徒困境：不合作严格占优，因此只有一个低收益 Nash 均衡。</p>
 
           <div class="run-actions">
             <button id="lesson3-run-btn" class="secondary-btn" type="button">开始模拟 20 轮</button>

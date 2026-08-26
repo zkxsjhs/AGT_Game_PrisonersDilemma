@@ -3,19 +3,13 @@
 (function () {
   "use strict";
 
-  // 每位智能体有不同的理性程度（temperature 越低越理性）。
-  // initialCoop 只用于第一轮，之后智能体会根据上一轮其他智能体的决策来更新选择。
-  var AGENT_SEEDS = [
-    { id: "l1", name: "智能体 1", label: "完全理性", temperature: 0.05, initialCoop: 0.50 },
-    { id: "l2", name: "智能体 2", label: "高度理性", temperature: 0.20, initialCoop: 0.50 },
-    { id: "l3", name: "智能体 3", label: "理性", temperature: 0.50, initialCoop: 0.70 },
-    { id: "l4", name: "智能体 4", label: "有限理性", temperature: 0.90, initialCoop: 0.30 },
-    { id: "l5", name: "智能体 5", label: "探索型", temperature: 1.50, initialCoop: 0.50 }
-  ];
-
+  var DEFAULT_AGENT_COUNT = 5;
+  var DEFAULT_RATIONALITY = 80;
   var DEFAULT_BENEFIT = 3;
   var DEFAULT_COST = 1;
   var DEFAULT_ROUNDS = 20;
+
+  var INITIAL_COOP_PATTERN = [0.50, 0.70, 0.30, 0.60, 0.40, 0.55, 0.25, 0.65, 0.35, 0.50, 0.20, 0.80];
 
   var roundNumberEl = document.getElementById("lesson3-round-number");
   var totalPayoffEl = document.getElementById("lesson3-total-payoff");
@@ -24,27 +18,44 @@
   var runBtn = document.getElementById("lesson3-run-btn");
   var stepBtn = document.getElementById("lesson3-step-btn");
   var resetBtn = document.getElementById("lesson3-reset-btn");
+
+  var modePdBtn = document.getElementById("mode-pd-btn");
+  var modeThresholdBtn = document.getElementById("mode-threshold-btn");
+  var modeDescriptionEl = document.getElementById("lesson3-mode-description");
+
+  var agentCountSlider = document.getElementById("agent-count-slider");
+  var rationalitySlider = document.getElementById("rationality-slider");
   var benefitSlider = document.getElementById("benefit-slider");
   var costSlider = document.getElementById("cost-slider");
   var roundsSlider = document.getElementById("rounds-slider");
+
+  var agentCountValueEl = document.getElementById("agent-count-value");
+  var rationalityValueEl = document.getElementById("rationality-value");
   var benefitValueEl = document.getElementById("benefit-value");
   var costValueEl = document.getElementById("cost-value");
   var roundsValueEl = document.getElementById("rounds-value");
+
   var costRuleTextEl = document.getElementById("cost-rule-text");
   var benefitRuleTextEl = document.getElementById("benefit-rule-text");
+
   var historyHeadEl = document.getElementById("lesson3-history-head");
   var historyBodyEl = document.getElementById("lesson3-history-body");
   var historySummaryEl = document.getElementById("lesson3-history-summary");
 
   var state;
 
-  function makeAgent(seed) {
+  function temperatureFromRationality(rationality) {
+    // 理性程度 100 时 temperature 接近 0，选择几乎完全由收益决定；
+    // 理性程度 0 时 temperature 较高，包含更多探索与波动。
+    return 0.05 + ((100 - rationality) / 100) * 1.95;
+  }
+
+  function makeAgent(index) {
     return {
-      id: seed.id,
-      name: seed.name,
-      label: seed.label,
-      temperature: seed.temperature,
-      initialCoop: seed.initialCoop,
+      id: "l" + (index + 1),
+      name: "智能体 " + (index + 1),
+      label: "AI 决策者",
+      initialCoop: INITIAL_COOP_PATTERN[index % INITIAL_COOP_PATTERN.length],
       choice: null,
       payoff: null,
       cumulativePayoff: 0,
@@ -52,13 +63,24 @@
     };
   }
 
+  function makeAgents(count) {
+    var agents = [];
+    for (var i = 0; i < count; i++) {
+      agents.push(makeAgent(i));
+    }
+    return agents;
+  }
+
   function createState() {
     return {
       round: 0,
+      mode: "pd",
       benefit: DEFAULT_BENEFIT,
       cost: DEFAULT_COST,
       rounds: DEFAULT_ROUNDS,
-      agents: AGENT_SEEDS.map(makeAgent),
+      agentCount: DEFAULT_AGENT_COUNT,
+      rationality: DEFAULT_RATIONALITY,
+      agents: makeAgents(DEFAULT_AGENT_COUNT),
       history: []
     };
   }
@@ -82,16 +104,49 @@
     return "waiting";
   }
 
-  function cooperationProbability(agent, othersCoopLast) {
-    // 假设上一轮其他智能体的选择会重复，计算合作与不合作的收益。
-    var uCoop = -state.cost + state.benefit * othersCoopLast;
-    var uDefect = state.benefit * othersCoopLast;
+  function utilities(agent, othersCoopLast) {
+    if (state.mode === "threshold") {
+      // 临界合作：只有当其他所有人都合作时，合作才会带来收益。
+      if (othersCoopLast >= state.agentCount - 1) {
+        return {
+          coop: -state.cost + state.benefit,
+          defect: 0
+        };
+      }
+      return {
+        coop: -state.cost,
+        defect: 0
+      };
+    }
 
-    // 理性程度越高（temperature 越小），越接近选择收益更高的动作。
-    var maxUtility = Math.max(uCoop, uDefect);
-    var expCoop = Math.exp((uCoop - maxUtility) / agent.temperature);
-    var expDefect = Math.exp((uDefect - maxUtility) / agent.temperature);
+    // 囚徒困境：不合作始终比合作多获得 cost。
+    return {
+      coop: -state.cost + state.benefit * othersCoopLast,
+      defect: state.benefit * othersCoopLast
+    };
+  }
+
+  function cooperationProbability(agent, othersCoopLast) {
+    var util = utilities(agent, othersCoopLast);
+    var temperature = temperatureFromRationality(state.rationality);
+
+    var maxUtility = Math.max(util.coop, util.defect);
+    var expCoop = Math.exp((util.coop - maxUtility) / temperature);
+    var expDefect = Math.exp((util.defect - maxUtility) / temperature);
     return expCoop / (expCoop + expDefect);
+  }
+
+  function payoffFor(agent, totalCoop) {
+    if (state.mode === "threshold") {
+      var allCoop = totalCoop === state.agentCount;
+      if (agent.choice === "cooperate") {
+        return -state.cost + (allCoop ? state.benefit : 0);
+      }
+      return 0;
+    }
+
+    var otherCoop = totalCoop - (agent.choice === "cooperate" ? 1 : 0);
+    return (agent.choice === "cooperate" ? -state.cost : 0) + state.benefit * otherCoop;
   }
 
   function makeDots(history) {
@@ -213,6 +268,8 @@
   }
 
   function renderSettings() {
+    agentCountValueEl.textContent = String(state.agentCount);
+    rationalityValueEl.textContent = String(state.rationality);
     benefitValueEl.textContent = String(state.benefit);
     costValueEl.textContent = String(state.cost);
     roundsValueEl.textContent = String(state.rounds);
@@ -220,9 +277,20 @@
     benefitRuleTextEl.textContent = String(state.benefit);
 
     costSlider.max = String(Math.max(1, state.benefit - 1));
+    agentCountSlider.value = String(state.agentCount);
+    rationalitySlider.value = String(state.rationality);
     benefitSlider.value = String(state.benefit);
     costSlider.value = String(state.cost);
     roundsSlider.value = String(state.rounds);
+
+    modePdBtn.classList.toggle("is-active", state.mode === "pd");
+    modeThresholdBtn.classList.toggle("is-active", state.mode === "threshold");
+
+    if (state.mode === "threshold") {
+      modeDescriptionEl.textContent = "当前为临界合作博弈：全员合作与全员不合作都是 Nash 均衡，因此可能得到高收益或低收益两种结果。";
+    } else {
+      modeDescriptionEl.textContent = "当前为囚徒困境：不合作严格占优，因此无论智能体数量与理性如何，唯一 Nash 均衡都是全员不合作。";
+    }
 
     runBtn.textContent = "开始模拟 " + state.rounds + " 轮";
   }
@@ -240,6 +308,13 @@
     renderHistory();
   }
 
+  function resetSimulation() {
+    state.round = 0;
+    state.agents = makeAgents(state.agentCount);
+    state.history = [];
+    render();
+  }
+
   function playOneRound() {
     state.round += 1;
 
@@ -252,7 +327,8 @@
       });
     }
 
-    // 第一轮使用初始合作概率；之后根据上一轮其他智能体的决策理性选择。
+    var temperature = temperatureFromRationality(state.rationality);
+
     state.agents.forEach(function (agent) {
       if (!previous) {
         agent.choice = Math.random() < agent.initialCoop ? "cooperate" : "defect";
@@ -274,8 +350,7 @@
     var groupPayoff = 0;
 
     state.agents.forEach(function (agent) {
-      var otherCoop = totalCoop - (agent.choice === "cooperate" ? 1 : 0);
-      var payoff = (agent.choice === "cooperate" ? -state.cost : 0) + state.benefit * otherCoop;
+      var payoff = payoffFor(agent, totalCoop);
       agent.payoff = payoff;
       agent.cumulativePayoff += payoff;
       groupPayoff += payoff;
@@ -297,7 +372,6 @@
       };
     });
 
-    // 记录动作历史，供卡片上的色块展示。
     state.agents.forEach(function (agent) {
       agent.actionHistory.push(agent.choice);
     });
@@ -323,12 +397,29 @@
     render();
   }
 
-  function resetSimulation() {
-    state.round = 0;
-    state.agents = AGENT_SEEDS.map(makeAgent);
-    state.history = [];
-    render();
+  function setMode(mode) {
+    if (state.mode === mode) return;
+    state.mode = mode;
+    resetSimulation();
   }
+
+  modePdBtn.addEventListener("click", function () {
+    setMode("pd");
+  });
+
+  modeThresholdBtn.addEventListener("click", function () {
+    setMode("threshold");
+  });
+
+  agentCountSlider.addEventListener("input", function () {
+    state.agentCount = Math.max(2, Math.min(12, Number(agentCountSlider.value)));
+    resetSimulation();
+  });
+
+  rationalitySlider.addEventListener("input", function () {
+    state.rationality = Math.max(0, Math.min(100, Number(rationalitySlider.value)));
+    renderSettings();
+  });
 
   benefitSlider.addEventListener("input", function () {
     var value = Number(benefitSlider.value);
@@ -339,7 +430,7 @@
       state.cost = Math.max(1, state.benefit - 1);
     }
 
-    renderSettings();
+    resetSimulation();
   });
 
   costSlider.addEventListener("input", function () {
@@ -347,7 +438,7 @@
     var maxCost = Math.max(1, state.benefit - 1);
     value = Math.max(1, Math.min(maxCost, value));
     state.cost = value;
-    renderSettings();
+    resetSimulation();
   });
 
   roundsSlider.addEventListener("input", function () {
