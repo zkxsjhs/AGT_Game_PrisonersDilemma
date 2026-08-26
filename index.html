@@ -3,137 +3,251 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>囚徒困境 · 群体决策实验</title>
+  <title>囚徒困境实验室 · 博弈论学习项目</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="site-header">
     <div class="wrap">
-      <p class="eyebrow">博弈论学习项目 · 第一课</p>
-      <h1>囚徒困境：群体版</h1>
+      <p class="eyebrow">博弈论学习项目</p>
+      <h1>囚徒困境实验室</h1>
       <p class="subtitle">
-        你是<strong>决策者 1</strong>。每一轮，你和若干位有不同倾向的决策者同时做出选择。
-        你可以合作，也可以不合作；你的收益不只取决于你，也取决于其他人。
+        先理解群体囚徒困境，再看多智能体如何从你的选择中学习。你是<strong>决策者 1</strong>，每一步选择都会影响整个群体。
       </p>
+      <nav class="lesson-nav" aria-label="课程切换">
+        <button class="lesson-tab is-active" data-lesson="1" type="button">第一课 · 群体囚徒困境</button>
+        <button class="lesson-tab" data-lesson="2" type="button">第二课 · 多智能体学习</button>
+      </nav>
     </div>
   </header>
 
   <main class="wrap">
-    <section class="rules" aria-label="规则说明">
-      <article class="rule-card cooperate">
-        <div class="rule-top">
-          <span class="badge">决策 A</span>
-          <h2>合作</h2>
-        </div>
-        <p class="rule-desc">你付出 <strong>-1</strong> 收益，同时让<strong>其他每一位</strong>决策者获得 <strong>+3</strong> 收益。</p>
-        <p class="rule-note">如果大家都合作，整个群体的总收益最高。</p>
-      </article>
+    <section id="lesson-1" class="lesson is-active" aria-label="第一课">
+      <section class="rules" aria-label="规则说明">
+        <article class="rule-card cooperate">
+          <div class="rule-top">
+            <span class="badge">决策 A</span>
+            <h2>合作</h2>
+          </div>
+          <p class="rule-desc">你付出 <strong>-1</strong> 收益，同时让<strong>其他每一位</strong>决策者获得 <strong>+3</strong> 收益。</p>
+          <p class="rule-note">如果大家都合作，整个群体的总收益最高。</p>
+        </article>
 
-      <article class="rule-card defect">
-        <div class="rule-top">
-          <span class="badge">决策 B</span>
-          <h2>不合作</h2>
-        </div>
-        <p class="rule-desc">你和其他决策者的收益变化均为 <strong>0</strong>。</p>
-        <p class="rule-note">自己不会损失，但也无法帮助别人；别人合作时，你可能搭便车。</p>
-      </article>
-    </section>
-
-    <section class="game-board">
-      <div class="board-header">
-        <div>
-          <p class="eyebrow">实验面板</p>
-          <h2>现在开始一轮新的选择</h2>
-        </div>
-        <div class="board-stats">
-          <div class="stat">
-            <span class="stat-label">当前轮次</span>
-            <strong id="round-number">0</strong>
+        <article class="rule-card defect">
+          <div class="rule-top">
+            <span class="badge">决策 B</span>
+            <h2>不合作</h2>
           </div>
-          <div class="stat">
-            <span class="stat-label">你的累计收益</span>
-            <strong id="player-total">0</strong>
-          </div>
-        </div>
-      </div>
-
-      <section class="setup-panel">
-        <div class="setup-control">
-          <div class="setup-text">
-            <h3>决策者总数</h3>
-            <p>包含你（决策者 1）在内，至少 2 人，最多 12 人。</p>
-          </div>
-          <div class="stepper">
-            <button id="decrease-players-btn" class="stepper-btn" type="button" aria-label="减少决策者">−</button>
-            <span id="total-players" class="stepper-value">6</span>
-            <button id="increase-players-btn" class="stepper-btn" type="button" aria-label="增加决策者">+</button>
-          </div>
-        </div>
-        <p class="setup-hint">每位 AI 决策者都可以用下方滑块调整“合作倾向”，它代表该决策者选择“合作”的概率。</p>
+          <p class="rule-desc">你和其他决策者的收益变化均为 <strong>0</strong>。</p>
+          <p class="rule-note">自己不会损失，但也无法帮助别人；别人合作时，你可能搭便车。</p>
+        </article>
       </section>
 
-      <div class="opponents-header">
-        <h3>本轮决策者</h3>
-        <p>每位决策者都有不同的合作倾向，倾向只代表概率，不保证他们一定这样选择。</p>
-      </div>
-      <div id="opponents" class="opponents-grid"></div>
-
-      <div class="player-panel">
-        <div class="player-identity">
-          <span class="avatar">你</span>
+      <section class="game-board">
+        <div class="board-header">
           <div>
-            <h3>决策者 1（你）</h3>
-            <p>本轮收益：<strong id="player-round-payoff">—</strong></p>
+            <p class="eyebrow">实验面板</p>
+            <h2>现在开始一轮新的选择</h2>
+          </div>
+          <div class="board-stats">
+            <div class="stat">
+              <span class="stat-label">当前轮次</span>
+              <strong id="round-number">0</strong>
+            </div>
+            <div class="stat">
+              <span class="stat-label">你的累计收益</span>
+              <strong id="player-total">0</strong>
+            </div>
           </div>
         </div>
-        <div class="player-actions">
-          <button id="cooperate-btn" class="action-btn cooperate" type="button">
-            <span class="action-label">决策 A · 合作</span>
-            <span class="action-sub">我 -1 / 其他每位 +3</span>
-          </button>
-          <button id="defect-btn" class="action-btn defect" type="button">
-            <span class="action-label">决策 B · 不合作</span>
-            <span class="action-sub">我 0 / 其他每位 0</span>
-          </button>
+
+        <section class="setup-panel">
+          <div class="setup-control">
+            <div class="setup-text">
+              <h3>决策者总数</h3>
+              <p>包含你（决策者 1）在内，至少 2 人，最多 12 人。</p>
+            </div>
+            <div class="stepper">
+              <button id="decrease-players-btn" class="stepper-btn" type="button" aria-label="减少决策者">−</button>
+              <span id="total-players" class="stepper-value">6</span>
+              <button id="increase-players-btn" class="stepper-btn" type="button" aria-label="增加决策者">+</button>
+            </div>
+          </div>
+          <p class="setup-hint">每位 AI 决策者都可以用下方滑块调整“合作倾向”，它代表该决策者选择“合作”的概率。</p>
+        </section>
+
+        <div class="opponents-header">
+          <h3>本轮决策者</h3>
+          <p>每位决策者都有不同的合作倾向，倾向只代表概率，不保证他们一定这样选择。</p>
         </div>
-      </div>
+        <div id="opponents" class="opponents-grid"></div>
 
-      <div id="round-result" class="round-result is-hidden" aria-live="polite"></div>
+        <div class="player-panel">
+          <div class="player-identity">
+            <span class="avatar">你</span>
+            <div>
+              <h3>决策者 1（你）</h3>
+              <p>本轮收益：<strong id="player-round-payoff">—</strong></p>
+            </div>
+          </div>
+          <div class="player-actions">
+            <button id="cooperate-btn" class="action-btn cooperate" type="button">
+              <span class="action-label">决策 A · 合作</span>
+              <span class="action-sub">我 -1 / 其他每位 +3</span>
+            </button>
+            <button id="defect-btn" class="action-btn defect" type="button">
+              <span class="action-label">决策 B · 不合作</span>
+              <span class="action-sub">我 0 / 其他每位 0</span>
+            </button>
+          </div>
+        </div>
 
-      <div class="board-footer">
-        <button id="next-round-btn" class="secondary-btn is-hidden" type="button">下一轮</button>
-        <button id="restart-btn" class="ghost-btn" type="button">重新开始</button>
-      </div>
+        <div id="round-result" class="round-result is-hidden" aria-live="polite"></div>
+
+        <div class="board-footer">
+          <button id="next-round-btn" class="secondary-btn is-hidden" type="button">下一轮</button>
+          <button id="restart-btn" class="ghost-btn" type="button">重新开始</button>
+        </div>
+      </section>
+
+      <section class="history-section">
+        <div class="history-header">
+          <h2>历史记录</h2>
+          <p id="history-summary">还没有记录。</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>轮次</th>
+                <th>你的选择</th>
+                <th>本轮合作人数</th>
+                <th>你的收益</th>
+                <th>决策者结果</th>
+              </tr>
+            </thead>
+            <tbody id="history-body"></tbody>
+          </table>
+        </div>
+      </section>
     </section>
 
-    <section class="history-section">
-      <div class="history-header">
-        <h2>历史记录</h2>
-        <p id="history-summary">还没有记录。</p>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>轮次</th>
-              <th>你的选择</th>
-              <th>本轮合作人数</th>
-              <th>你的收益</th>
-              <th>决策者结果</th>
-            </tr>
-          </thead>
-          <tbody id="history-body"></tbody>
-        </table>
-      </div>
+    <section id="lesson-2" class="lesson" aria-label="第二课">
+      <section class="lesson-intro">
+        <p class="eyebrow">第二课</p>
+        <h2>多智能体如何学习你的决策</h2>
+        <p>
+          这一关有 5 位智能体。每位智能体都有一个“对你的信任值”，它决定该智能体本轮选择合作的概率。
+          每一轮结束后，它们都会观察你的选择：你合作，它们就提高对你的信任；你不合作，它们就降低信任。
+        </p>
+        <p class="lesson-note">
+          学习公式：<strong>新信任 = 旧信任 + 学习率 ×（目标 − 旧信任）</strong>。目标在你合作时为 1，不合作时为 0。
+          学习率越高，智能体适应你的速度就越快。
+        </p>
+      </section>
+
+      <section class="rules" aria-label="第二课规则">
+        <article class="rule-card cooperate">
+          <div class="rule-top">
+            <span class="badge">你合作</span>
+            <h2>信任上升</h2>
+          </div>
+          <p class="rule-desc">每位智能体都会把信任向 <strong>100%</strong> 靠近。</p>
+          <p class="rule-note">持续合作会逐渐塑造一个更愿意合作的群体。</p>
+        </article>
+
+        <article class="rule-card defect">
+          <div class="rule-top">
+            <span class="badge">你不合作</span>
+            <h2>信任下降</h2>
+          </div>
+          <p class="rule-desc">每位智能体都会把信任向 <strong>0%</strong> 靠近。</p>
+          <p class="rule-note">频繁背叛会让智能体越来越不愿意与你合作。</p>
+        </article>
+      </section>
+
+      <section class="game-board lesson2-board">
+        <div class="board-header">
+          <div>
+            <p class="eyebrow">学习实验面板</p>
+            <h2>观察智能体如何适应你</h2>
+          </div>
+          <div class="board-stats">
+            <div class="stat">
+              <span class="stat-label">当前轮次</span>
+              <strong id="lesson2-round-number">0</strong>
+            </div>
+            <div class="stat">
+              <span class="stat-label">你的累计收益</span>
+              <strong id="lesson2-player-total">0</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="opponents-header">
+          <h3>本轮智能体</h3>
+          <p>信任值 = 该智能体选择合作的概率。每轮结束后它们会根据你的选择更新信任。</p>
+        </div>
+        <div id="lesson2-agents" class="opponents-grid lesson2-agents"></div>
+
+        <div class="player-panel">
+          <div class="player-identity">
+            <span class="avatar">你</span>
+            <div>
+              <h3>决策者 1（你）</h3>
+              <p>本轮收益：<strong id="lesson2-player-round-payoff">—</strong></p>
+            </div>
+          </div>
+          <div class="player-actions">
+            <button id="lesson2-cooperate-btn" class="action-btn cooperate" type="button">
+              <span class="action-label">决策 A · 合作</span>
+              <span class="action-sub">我 -1 / 其他每位 +3</span>
+            </button>
+            <button id="lesson2-defect-btn" class="action-btn defect" type="button">
+              <span class="action-label">决策 B · 不合作</span>
+              <span class="action-sub">我 0 / 其他每位 0</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="lesson2-round-result" class="round-result is-hidden" aria-live="polite"></div>
+
+        <div class="board-footer">
+          <button id="lesson2-next-round-btn" class="secondary-btn is-hidden" type="button">下一轮</button>
+          <button id="lesson2-restart-btn" class="ghost-btn" type="button">重新开始</button>
+        </div>
+      </section>
+
+      <section class="history-section">
+        <div class="history-header">
+          <h2>学习记录</h2>
+          <p id="lesson2-history-summary">还没有记录。</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>轮次</th>
+                <th>你的选择</th>
+                <th>你的收益</th>
+                <th>智能体本轮结果与信任变化</th>
+              </tr>
+            </thead>
+            <tbody id="lesson2-history-body"></tbody>
+          </table>
+        </div>
+      </section>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="wrap">
-      <p>灵感来自 <a href="https://ncase.me/trust/" target="_blank" rel="noreferrer">ncase/trust</a> · 先完成囚徒困境核心机制，后续可继续扩展迭代策略与角色剧情。</p>
+      <p>灵感来自 <a href="https://ncase.me/trust/" target="_blank" rel="noreferrer">ncase/trust</a> · 群体囚徒困境与多智能体学习实验。</p>
     </div>
   </footer>
 
   <script src="game.js"></script>
+  <script src="lesson2.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
