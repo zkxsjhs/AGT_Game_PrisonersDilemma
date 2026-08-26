@@ -587,3 +587,139 @@ tbody tr:hover {
     flex: 1;
   }
 }
+
+
+/* 决策者总数与倾向调节 */
+.setup-panel {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-bottom: 22px;
+}
+
+.setup-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.setup-text h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.setup-text p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px;
+}
+
+.stepper-btn {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.stepper-btn:not(:disabled):hover {
+  background: var(--accent);
+  color: #111827;
+}
+
+.stepper-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stepper-value {
+  min-width: 34px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--accent);
+}
+
+.setup-hint {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.bias-control {
+  margin-top: 4px;
+}
+
+.bias-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--defect), var(--accent), var(--cooperate));
+  outline: none;
+  cursor: pointer;
+  margin: 8px 0 4px;
+}
+
+.bias-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid var(--accent);
+  cursor: grab;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.bias-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid var(--accent);
+  cursor: grab;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.bias-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bias-slider:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .setup-control {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stepper {
+    justify-content: center;
+  }
+}

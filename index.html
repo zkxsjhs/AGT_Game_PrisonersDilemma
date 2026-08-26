@@ -57,6 +57,21 @@
         </div>
       </div>
 
+      <section class="setup-panel">
+        <div class="setup-control">
+          <div class="setup-text">
+            <h3>决策者总数</h3>
+            <p>包含你（决策者 1）在内，至少 2 人，最多 12 人。</p>
+          </div>
+          <div class="stepper">
+            <button id="decrease-players-btn" class="stepper-btn" type="button" aria-label="减少决策者">−</button>
+            <span id="total-players" class="stepper-value">6</span>
+            <button id="increase-players-btn" class="stepper-btn" type="button" aria-label="增加决策者">+</button>
+          </div>
+        </div>
+        <p class="setup-hint">每位 AI 决策者都可以用下方滑块调整“合作倾向”，它代表该决策者选择“合作”的概率。</p>
+      </section>
+
       <div class="opponents-header">
         <h3>本轮决策者</h3>
         <p>每位决策者都有不同的合作倾向，倾向只代表概率，不保证他们一定这样选择。</p>

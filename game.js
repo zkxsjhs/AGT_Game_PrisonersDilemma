@@ -2,17 +2,13 @@
 (function () {
   "use strict";
 
-  // 每个 AI 决策者拥有不同的合作倾向 bias（0~1）。
-  // bias 表示该决策者本轮选择“合作”的概率，不是固定人格。
-  var OPPONENT_SEEDS = [
-    { id: "a1", name: "小善", bias: 0.85, desc: "习惯合作，偶尔动摇" },
-    { id: "a2", name: "小衡", bias: 0.62, desc: "看情况，倾向合作" },
-    { id: "a3", name: "小疑", bias: 0.45, desc: "半信半疑，不太稳定" },
-    { id: "a4", name: "小独", bias: 0.22, desc: "多数时候不合作" },
-    { id: "a5", name: "小冷", bias: 0.08, desc: "几乎不合作" }
-  ];
+  var MIN_TOTAL = 2;     // 至少 2 位决策者（含玩家）
+  var MAX_TOTAL = 12;    // 最多 12 位决策者（含玩家）
+  var DEFAULT_TOTAL = 6; // 默认 1 位玩家 + 5 位 AI
 
-  var PLAYER_ID = "决策者 1";
+  var PLAYER_NAME = "决策者 1";
+
+  var DEFAULT_BIASES = [0.85, 0.62, 0.45, 0.22, 0.08];
 
   // DOM 元素
   var roundNumberEl = document.getElementById("round-number");
@@ -26,35 +22,55 @@
   var defectBtn = document.getElementById("defect-btn");
   var historyBodyEl = document.getElementById("history-body");
   var historySummaryEl = document.getElementById("history-summary");
+  var totalPlayersEl = document.getElementById("total-players");
+  var decreasePlayersBtn = document.getElementById("decrease-players-btn");
+  var increasePlayersBtn = document.getElementById("increase-players-btn");
 
   var state;
 
-  function freshOpponents() {
-    return OPPONENT_SEEDS.map(function (seed) {
-      return {
-        id: seed.id,
-        name: seed.name,
-        bias: seed.bias,
-        desc: seed.desc,
-        choice: null, // "cooperate" | "defect" | null
-        payoff: null
-      };
-    });
+  function defaultBias(n) {
+    if (n >= 1 && n <= DEFAULT_BIASES.length) {
+      return DEFAULT_BIASES[n - 1];
+    }
+    return 0.5;
+  }
+
+  function makeOpponent(n) {
+    return {
+      id: "a" + n,
+      name: "a" + n,
+      bias: defaultBias(n),
+      choice: null, // "cooperate" | "defect" | null
+      payoff: null
+    };
   }
 
   function createState() {
+    var opponents = [];
+    for (var i = 1; i < DEFAULT_TOTAL; i++) {
+      opponents.push(makeOpponent(i));
+    }
+
     return {
       round: 0, // 已完成的轮数
       phase: "choose", // "choose" | "result"
       playerTotal: 0,
       playerChoice: null,
       playerPayoff: null,
-      opponents: freshOpponents(),
+      totalPlayers: DEFAULT_TOTAL,
+      opponents: opponents,
       history: []
     };
   }
 
   state = createState();
+
+  function findOpponent(id) {
+    for (var i = 0; i < state.opponents.length; i++) {
+      if (state.opponents[i].id === id) return state.opponents[i];
+    }
+    return null;
+  }
 
   function currentRoundLabel() {
     return state.phase === "result" ? state.round : state.round + 1;
@@ -79,6 +95,8 @@
 
   function renderOpponents() {
     var html = "";
+    var disabled = state.phase !== "choose" ? " disabled" : "";
+
     state.opponents.forEach(function (o) {
       var percent = Math.round(o.bias * 100);
       var cardStateClass = "";
@@ -86,23 +104,27 @@
       if (o.choice === "defect") cardStateClass = "is-defected";
 
       html +=
-        '<article class="opponent-card ' + cardStateClass + '">' +
+        '<article class="opponent-card ' + cardStateClass + '" data-id="' + o.id + '">' +
           '<div class="opponent-head">' +
             '<h3 class="opponent-name">' + o.name + '</h3>' +
-            '<span class="opponent-id">' + o.id.toUpperCase() + '</span>' +
+            '<span class="opponent-id">AI 决策者</span>' +
           '</div>' +
-          '<p class="opponent-desc">' + o.desc + '</p>' +
-          '<div class="bias-row">' +
-            '<span>合作倾向</span>' +
-            '<span>' + percent + '%</span>' +
+          '<p class="opponent-desc">拖动滑块调整合作倾向</p>' +
+          '<div class="bias-control">' +
+            '<div class="bias-row">' +
+              '<span>合作倾向</span>' +
+              '<span class="bias-value">' + percent + '%</span>' +
+            '</div>' +
+            '<input class="bias-slider" type="range" min="0" max="100" step="1" value="' + percent + '" data-id="' + o.id + '" aria-label="调整 ' + o.name + ' 的合作倾向"' + disabled + '>' +
+            '<div class="bias-track"><div class="bias-fill" style="width:' + percent + '%"></div></div>' +
           '</div>' +
-          '<div class="bias-track"><div class="bias-fill" style="width:' + percent + '%"></div></div>' +
           '<div class="opponent-choice">' +
             '<span class="choice-pill ' + choiceClassName(o.choice) + '">' + choiceText(o.choice) + '</span>' +
             '<span class="opponent-payoff">' + (o.payoff === null ? "—" : sign(o.payoff)) + '</span>' +
           '</div>' +
         '</article>';
     });
+
     opponentsEl.innerHTML = html;
   }
 
@@ -115,6 +137,8 @@
     cooperateBtn.disabled = !choosing;
     defectBtn.disabled = !choosing;
     nextRoundBtn.classList.toggle("is-hidden", choosing);
+    decreasePlayersBtn.disabled = !choosing || state.totalPlayers <= MIN_TOTAL;
+    increasePlayersBtn.disabled = !choosing || state.totalPlayers >= MAX_TOTAL;
   }
 
   function renderRoundResult() {
@@ -124,7 +148,7 @@
     }
 
     var playerText = choiceText(state.playerChoice);
-    var totalPlayers = state.opponents.length + 1;
+    var totalPlayers = state.totalPlayers;
     var aiCooperators = state.opponents.filter(function (o) {
       return o.choice === "cooperate";
     }).length;
@@ -170,7 +194,7 @@
         '<tr>' +
           '<td>' + h.round + '</td>' +
           '<td><span class="choice-tag ' + choiceClassName(h.playerChoice) + '">' + choiceText(h.playerChoice) + '</span></td>' +
-          '<td>' + h.totalCooperators + ' / ' + (state.opponents.length + 1) + '</td>' +
+          '<td>' + h.totalCooperators + ' / ' + h.totalPlayers + '</td>' +
           '<td>' + sign(h.playerPayoff) + '</td>' +
           '<td class="result-detail">' + detail + '</td>' +
         '</tr>'
@@ -181,10 +205,55 @@
   }
 
   function render() {
+    totalPlayersEl.textContent = String(state.totalPlayers);
     renderOpponents();
     renderPlayer();
     renderRoundResult();
     renderHistory();
+  }
+
+  function updateBiasCard(id) {
+    var opponent = findOpponent(id);
+    if (!opponent) return;
+
+    var card = opponentsEl.querySelector('.opponent-card[data-id="' + id + '"]');
+    if (!card) return;
+
+    var percent = Math.round(opponent.bias * 100);
+    var valueEl = card.querySelector(".bias-value");
+    var fillEl = card.querySelector(".bias-fill");
+    if (valueEl) valueEl.textContent = percent + "%";
+    if (fillEl) fillEl.style.width = percent + "%";
+  }
+
+  function changeBias(id, value) {
+    var opponent = findOpponent(id);
+    if (!opponent) return;
+    opponent.bias = value / 100;
+    updateBiasCard(id);
+  }
+
+  function setTotalPlayers(value) {
+    value = Number(value);
+    value = Math.max(MIN_TOTAL, Math.min(MAX_TOTAL, value));
+
+    if (value === state.totalPlayers) {
+      renderPlayer();
+      return;
+    }
+
+    state.totalPlayers = value;
+    var targetAiCount = value - 1;
+
+    while (state.opponents.length < targetAiCount) {
+      state.opponents.push(makeOpponent(state.opponents.length + 1));
+    }
+
+    while (state.opponents.length > targetAiCount) {
+      state.opponents.pop();
+    }
+
+    render();
   }
 
   function choose(playerChoice) {
@@ -229,6 +298,7 @@
       playerChoice: playerChoice,
       playerPayoff: state.playerPayoff,
       totalCooperators: totalCooperators,
+      totalPlayers: state.totalPlayers,
       opponentResults: opponentResults
     });
 
@@ -264,6 +334,21 @@
 
   nextRoundBtn.addEventListener("click", nextRound);
   restartBtn.addEventListener("click", restart);
+
+  decreasePlayersBtn.addEventListener("click", function () {
+    setTotalPlayers(state.totalPlayers - 1);
+  });
+
+  increasePlayersBtn.addEventListener("click", function () {
+    setTotalPlayers(state.totalPlayers + 1);
+  });
+
+  opponentsEl.addEventListener("input", function (event) {
+    var target = event.target;
+    if (target.classList && target.classList.contains("bias-slider")) {
+      changeBias(target.getAttribute("data-id"), Number(target.value));
+    }
+  });
 
   render();
 })();
