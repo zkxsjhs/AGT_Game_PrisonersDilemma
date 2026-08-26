@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// 第三课：多智能体以自身 payoffs 为目标进行学习
+// 第三课：多智能体根据上一轮其他人的决策进行理性选择
 (function () {
   "use strict";
 
+  // 每位智能体有不同的理性程度（temperature 越低越理性）。
+  // initialCoop 只用于第一轮，之后智能体会根据上一轮其他智能体的决策来更新选择。
   var AGENT_SEEDS = [
-    { id: "l1", name: "智能体 1", label: "快速学习者", alpha: 0.50, temperature: 0.6, qA: 0.0, qB: 0.0 },
-    { id: "l2", name: "智能体 2", label: "平衡学习者", alpha: 0.30, temperature: 0.6, qA: 0.0, qB: 0.0 },
-    { id: "l3", name: "智能体 3", label: "谨慎学习者", alpha: 0.20, temperature: 0.9, qA: 0.6, qB: 0.0 },
-    { id: "l4", name: "智能体 4", label: "收益敏感型", alpha: 0.40, temperature: 0.4, qA: -0.5, qB: 0.5 },
-    { id: "l5", name: "智能体 5", label: "探索型", alpha: 0.35, temperature: 1.0, qA: 0.5, qB: -0.5 }
+    { id: "l1", name: "智能体 1", label: "完全理性", temperature: 0.05, initialCoop: 0.50 },
+    { id: "l2", name: "智能体 2", label: "高度理性", temperature: 0.20, initialCoop: 0.50 },
+    { id: "l3", name: "智能体 3", label: "理性", temperature: 0.50, initialCoop: 0.70 },
+    { id: "l4", name: "智能体 4", label: "有限理性", temperature: 0.90, initialCoop: 0.30 },
+    { id: "l5", name: "智能体 5", label: "探索型", temperature: 1.50, initialCoop: 0.50 }
   ];
 
   var DEFAULT_BENEFIT = 3;
@@ -41,10 +43,8 @@
       id: seed.id,
       name: seed.name,
       label: seed.label,
-      alpha: seed.alpha,
       temperature: seed.temperature,
-      qA: seed.qA,
-      qB: seed.qB,
+      initialCoop: seed.initialCoop,
       choice: null,
       payoff: null,
       cumulativePayoff: 0,
@@ -82,10 +82,16 @@
     return "waiting";
   }
 
-  function softmaxProbability(agent) {
-    var expA = Math.exp(agent.qA / agent.temperature);
-    var expB = Math.exp(agent.qB / agent.temperature);
-    return expA / (expA + expB);
+  function cooperationProbability(agent, othersCoopLast) {
+    // 假设上一轮其他智能体的选择会重复，计算合作与不合作的收益。
+    var uCoop = -state.cost + state.benefit * othersCoopLast;
+    var uDefect = state.benefit * othersCoopLast;
+
+    // 理性程度越高（temperature 越小），越接近选择收益更高的动作。
+    var maxUtility = Math.max(uCoop, uDefect);
+    var expCoop = Math.exp((uCoop - maxUtility) / agent.temperature);
+    var expDefect = Math.exp((uDefect - maxUtility) / agent.temperature);
+    return expCoop / (expCoop + expDefect);
   }
 
   function makeDots(history) {
@@ -146,11 +152,23 @@
     var totalAgents = state.agents.length;
     var groupPayoff = last.groupPayoff;
 
+    var changes;
+    if (state.history.length === 1) {
+      changes = last.agentResults.map(function (r) {
+        return r.name + "首次选择：" + choiceText(r.choice);
+      }).join("　");
+    } else {
+      changes = last.agentResults.map(function (r) {
+        return r.name + "：" + (r.changed ? "改变为 " : "继续 ") + choiceText(r.choice);
+      }).join("　");
+    }
+
     roundResultEl.innerHTML =
       '<h3>第 ' + last.round + ' 轮结果</h3>' +
       '<p>本轮共有 <span class="result-highlight">' + totalCoop + ' / ' + totalAgents + '</span> 位智能体选择合作。</p>' +
       '<p>本轮群体总收益为 <span class="result-highlight">' + sign(groupPayoff) + '</span>。</p>' +
-      '<p class="result-detail">智能体会根据本轮获得的收益更新自己的策略；它们的具体合作概率不会显示。</p>';
+      '<p class="result-detail">' + changes + '</p>' +
+      '<p class="result-detail">从第二轮起，智能体会根据上一轮其他智能体的决策，理性判断继续还是改变自己的选择。</p>';
 
     roundResultEl.classList.remove("is-hidden");
   }
@@ -177,9 +195,14 @@
         '<td>' + sign(h.groupPayoff) + '</td>';
 
       h.agentResults.forEach(function (r) {
+        var changeMark = "";
+        if (r.changed === true) changeMark = '<span class="change-mark changed">改变</span>';
+        if (r.changed === false) changeMark = '<span class="change-mark continued">继续</span>';
+
         row += '<td class="result-detail">' +
           '<span class="choice-tag ' + choiceClassName(r.choice) + '">' + choiceText(r.choice) + '</span>' +
           '<span class="payoff-num">' + sign(r.payoff) + '</span>' +
+          changeMark +
         '</td>';
       });
 
@@ -220,10 +243,27 @@
   function playOneRound() {
     state.round += 1;
 
-    // 每位智能体根据自己的隐藏策略（softmax 概率）选择合作或不合作。
+    var previous = state.history.length > 0 ? state.history[state.history.length - 1] : null;
+    var previousResultsById = {};
+
+    if (previous) {
+      previous.agentResults.forEach(function (r) {
+        previousResultsById[r.id] = r;
+      });
+    }
+
+    // 第一轮使用初始合作概率；之后根据上一轮其他智能体的决策理性选择。
     state.agents.forEach(function (agent) {
-      var p = softmaxProbability(agent);
-      agent.choice = Math.random() < p ? "cooperate" : "defect";
+      if (!previous) {
+        agent.choice = Math.random() < agent.initialCoop ? "cooperate" : "defect";
+      } else {
+        var previousSelf = previousResultsById[agent.id];
+        var previousSelfCoop = previousSelf && previousSelf.choice === "cooperate" ? 1 : 0;
+        var othersCoopLast = previous.totalCoop - previousSelfCoop;
+
+        var pCoop = cooperationProbability(agent, othersCoopLast);
+        agent.choice = Math.random() < pCoop ? "cooperate" : "defect";
+      }
       agent.payoff = null;
     });
 
@@ -233,7 +273,6 @@
 
     var groupPayoff = 0;
 
-    // 计算每位智能体的收益。
     state.agents.forEach(function (agent) {
       var otherCoop = totalCoop - (agent.choice === "cooperate" ? 1 : 0);
       var payoff = (agent.choice === "cooperate" ? -state.cost : 0) + state.benefit * otherCoop;
@@ -242,13 +281,24 @@
       groupPayoff += payoff;
     });
 
-    // 根据获得的收益更新自己的 Q 值（收益越高，越可能重复该动作）。
-    state.agents.forEach(function (agent) {
-      if (agent.choice === "cooperate") {
-        agent.qA = agent.qA + agent.alpha * (agent.payoff - agent.qA);
-      } else {
-        agent.qB = agent.qB + agent.alpha * (agent.payoff - agent.qB);
+    var results = state.agents.map(function (agent) {
+      var changed = null;
+      if (previous) {
+        var previousSelf = previousResultsById[agent.id];
+        changed = previousSelf.choice !== agent.choice;
       }
+
+      return {
+        id: agent.id,
+        name: agent.name,
+        choice: agent.choice,
+        payoff: agent.payoff,
+        changed: changed
+      };
+    });
+
+    // 记录动作历史，供卡片上的色块展示。
+    state.agents.forEach(function (agent) {
       agent.actionHistory.push(agent.choice);
     });
 
@@ -256,13 +306,7 @@
       round: state.round,
       totalCoop: totalCoop,
       groupPayoff: groupPayoff,
-      agentResults: state.agents.map(function (agent) {
-        return {
-          name: agent.name,
-          choice: agent.choice,
-          payoff: agent.payoff
-        };
-      })
+      agentResults: results
     });
   }
 

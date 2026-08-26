@@ -968,3 +968,26 @@ tbody tr:hover {
   font-weight: 700;
   color: var(--accent);
 }
+
+
+.change-mark {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  border: 1px solid var(--border);
+}
+
+.change-mark.changed {
+  color: var(--defect);
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.change-mark.continued {
+  color: var(--cooperate);
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.45);
+}
