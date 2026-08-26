@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // 第二课：多智能体通过玩家的决策进行学习
 (function () {
   "use strict";

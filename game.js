@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // 囚徒困境：群体版 - 游戏逻辑
 (function () {
   "use strict";

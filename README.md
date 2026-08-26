@@ -45,3 +45,9 @@ python -m http.server 8000
 - 加入角色剧情与互动引导
 - 让 AI 倾向在游戏中动态变化
 - 引入更多经典博弈模型（信任博弈、公共物品博弈等）
+
+## 许可证
+
+本项目采用 [GNU General Public License v3.0](LICENSE) 协议。
+
+SPDX-License-Identifier: GPL-3.0-or-later
