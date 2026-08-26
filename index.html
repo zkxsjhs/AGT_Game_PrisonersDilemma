@@ -18,6 +18,7 @@
       <nav class="lesson-nav" aria-label="课程切换">
         <button class="lesson-tab is-active" data-lesson="1" type="button">第一课 · 群体囚徒困境</button>
         <button class="lesson-tab" data-lesson="2" type="button">第二课 · 多智能体学习</button>
+        <button class="lesson-tab" data-lesson="3" type="button">第三课 · 收益驱动学习</button>
       </nav>
     </div>
   </header>
@@ -239,6 +240,117 @@
         </div>
       </section>
     </section>
+    <section id="lesson-3" class="lesson" aria-label="第三课">
+      <section class="lesson-intro">
+        <p class="eyebrow">第三课</p>
+        <h2>智能体如何为了更高收益而学习</h2>
+        <p>
+          这一关你不参与决策。每位智能体都会根据自己获得的收益不断调整策略，目标是在博弈中获得更高的 payoffs。
+          它们的合作概率对你是隐藏的，你只能观察它们的选择和收益。
+        </p>
+        <p class="lesson-note">你可以调整收益规则和模拟轮数，观察它们如何在“合作”与“不合作”之间演化。</p>
+      </section>
+
+      <section class="rules" aria-label="第三课规则">
+        <article class="rule-card cooperate">
+          <div class="rule-top">
+            <span class="badge">决策 A</span>
+            <h2>合作</h2>
+          </div>
+          <p class="rule-desc">自己付出 <strong id="cost-rule-text">1</strong>，同时让其他每位智能体获得 <strong id="benefit-rule-text">3</strong>。</p>
+          <p class="rule-note">合作对群体有利，但对自己有成本。</p>
+        </article>
+
+        <article class="rule-card defect">
+          <div class="rule-top">
+            <span class="badge">决策 B</span>
+            <h2>不合作</h2>
+          </div>
+          <p class="rule-desc">自己不付出成本，但仍能获得其他合作者带来的收益。</p>
+          <p class="rule-note">在单次博弈中，不合作总是让自己收益更高。</p>
+        </article>
+      </section>
+
+      <section class="game-board lesson3-board">
+        <div class="board-header">
+          <div>
+            <p class="eyebrow">自动模拟面板</p>
+            <h2>观察收益驱动的策略演化</h2>
+          </div>
+          <div class="board-stats">
+            <div class="stat">
+              <span class="stat-label">已模拟轮数</span>
+              <strong id="lesson3-round-number">0</strong>
+            </div>
+            <div class="stat">
+              <span class="stat-label">群体总收益</span>
+              <strong id="lesson3-total-payoff">0</strong>
+            </div>
+          </div>
+        </div>
+
+        <section class="simulation-settings">
+          <div class="settings-grid">
+            <div class="setting-block">
+              <div class="setting-head">
+                <label for="benefit-slider">合作带来的收益 b</label>
+                <strong id="benefit-value">3</strong>
+              </div>
+              <input id="benefit-slider" type="range" min="2" max="10" step="1" value="3">
+              <p class="setting-hint">每个其他合作者给你带来的收益。</p>
+            </div>
+
+            <div class="setting-block">
+              <div class="setting-head">
+                <label for="cost-slider">合作付出的成本 c</label>
+                <strong id="cost-value">1</strong>
+              </div>
+              <input id="cost-slider" type="range" min="1" max="2" step="1" value="1">
+              <p class="setting-hint">你选择合作时需要付出的成本。</p>
+            </div>
+
+            <div class="setting-block">
+              <div class="setting-head">
+                <label for="rounds-slider">模拟轮数</label>
+                <strong id="rounds-value">20</strong>
+              </div>
+              <input id="rounds-slider" type="range" min="1" max="100" step="1" value="20">
+              <p class="setting-hint">点击开始后连续模拟多少轮。</p>
+            </div>
+          </div>
+
+          <p class="settings-warning">为保证符合囚徒困境：收益 b 必须大于成本 c，且两者都大于 0。</p>
+
+          <div class="run-actions">
+            <button id="lesson3-run-btn" class="secondary-btn" type="button">开始模拟 20 轮</button>
+            <button id="lesson3-step-btn" class="secondary-btn" type="button">单步模拟</button>
+            <button id="lesson3-reset-btn" class="ghost-btn" type="button">重置</button>
+          </div>
+        </section>
+
+        <div class="opponents-header">
+          <h3>智能体</h3>
+          <p>合作概率不可见。你只能看到它们每轮的选择与收益。</p>
+        </div>
+        <div id="lesson3-agents" class="opponents-grid lesson3-agents"></div>
+
+        <div id="lesson3-round-result" class="round-result is-hidden" aria-live="polite"></div>
+      </section>
+
+      <section class="history-section">
+        <div class="history-header">
+          <h2>每次模拟的详细收益</h2>
+          <p id="lesson3-history-summary">还没有记录。</p>
+        </div>
+        <div class="table-wrap">
+          <table id="lesson3-history-table">
+            <thead><tr id="lesson3-history-head"></tr></thead>
+            <tbody id="lesson3-history-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
   </main>
 
   <footer class="site-footer">
@@ -249,6 +361,7 @@
 
   <script src="game.js"></script>
   <script src="lesson2.js"></script>
+  <script src="lesson3.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

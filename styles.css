@@ -833,3 +833,138 @@ tbody tr:hover {
   width: 100%;
   height: 30px;
 }
+
+
+/* 第三课：收益驱动学习 */
+.simulation-settings {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-bottom: 22px;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.setting-block {
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.setting-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.setting-head label {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.setting-head strong {
+  color: var(--accent);
+  font-size: 1.1rem;
+}
+
+.setting-block input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.setting-hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.settings-warning {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.run-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.lesson3-agents {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.agent-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.agent-stat {
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 9px 11px;
+}
+
+.agent-stat span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.agent-stat strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 1.15rem;
+  color: var(--accent);
+}
+
+.action-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 14px;
+  min-height: 18px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+}
+
+.dot.cooperate {
+  background: var(--cooperate);
+  border-color: var(--cooperate);
+}
+
+.dot.defect {
+  background: var(--defect);
+  border-color: var(--defect);
+}
+
+.dots-placeholder {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.payoff-num {
+  display: inline-block;
+  margin-left: 8px;
+  font-weight: 700;
+  color: var(--accent);
+}
