@@ -1,13 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// 主线：公司加班模拟，完成后解锁沙盒游戏
+// 主线：公司加班模拟，按周推进，员工会根据玩家决策更新好感
 (function () {
   "use strict";
 
-  var TOTAL_ROUNDS = 40;
+  var TOTAL_DAYS = 42;
+  var DAYS_PER_WEEK = 7;
   var OVERTIME_THRESHOLD = 4;
   var CULTURE_STREAK = 2;
-  var OVERTIME_SALARY = 12;
-  var LEAVE_SALARY = 8;
+  var WEEKDAY_SALARY = 8;
+  var OVERTIME_SALARY_BONUS = 6;
+  var WORK_ENERGY_COST = 1;
+  var OVERTIME_ENERGY_BASE = 2;
+  var OVERTIME_ENERGY_STEP = 1;
+  var WEEKEND_WORK_SALARY = 20;
+  var WEEKEND_WORK_ENERGY = 2;
+  var REST_ENERGY_MIN = 2;
+  var REST_ENERGY_MAX = 4;
+  var AI_OVERTIME_SALARY = 12;
+  var AI_LEAVE_SALARY = 8;
   var SPECIAL_ADD_FIRST_ROUND = 10;
   var SPECIAL_ADD_CHANCE = 0.4;
   var LEAVE_REPORT_THRESHOLD = 3;
@@ -21,6 +31,12 @@
   var RESISTANCE_THRESHOLD = 4;
   var RESISTANCE_BLOCK_CHANCE = 0.6;
   var FAMILIARITY_GAIN = 0.15;
+  var REPUTATION_OVERTIME = -2;
+  var REPUTATION_LEAVE = 1;
+  var REPUTATION_REST = 2;
+  var REPUTATION_WEEKEND_WORK = -1;
+
+  var WEEKDAY_NAMES = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 
   var COWORKERS = [
     { name: "老张", bias: 0.75, desc: "老员工，习惯加班", rationality: 0.40, familiarity: 0.40 },
@@ -43,6 +59,7 @@
   var companyPlayerEnergyEl = document.getElementById("company-player-energy");
   var companyPlayerSalaryEl = document.getElementById("company-player-salary");
   var companyOutputEl = document.getElementById("company-output");
+  var companyPlayerReputationEl = document.getElementById("company-player-reputation");
   var companyStatusTextEl = document.getElementById("company-status-text");
   var companyCoworkersEl = document.getElementById("company-coworkers");
   var companyActionsEl = document.getElementById("company-actions");
@@ -114,11 +131,13 @@
       playerEnergy: 0,
       playerSalary: 0,
       playerRoundSalary: 0,
+      playerReputation: 50,
       companyOutput: 0,
       playerChoice: null,
       playerPayoff: null,
       forced: false,
       streak: 0,
+      overtimeStreak: 0,
       overtimeCount: 0,
       lastOvertimeCount: null,
       lastWorkerCount: null,
@@ -154,6 +173,22 @@
     return state.coworkers.some(function (c) {
       return c.type === type && !c.fired;
     });
+  }
+
+  function currentDayIndex() {
+    return state.round % DAYS_PER_WEEK;
+  }
+
+  function isWeekend() {
+    return currentDayIndex() >= 5;
+  }
+
+  function currentWeek() {
+    return Math.floor(state.round / DAYS_PER_WEEK) + 1;
+  }
+
+  function currentOvertimeCost() {
+    return OVERTIME_ENERGY_BASE + state.overtimeStreak * OVERTIME_ENERGY_STEP;
   }
 
   function choiceText(choice) {
@@ -256,22 +291,23 @@
     });
     companyTalkTargetEl.innerHTML = options;
 
-    var talkDisabled = state.hasTalkedThisRound || state.forced || state.done || !normalAvailable;
+    var talkDisabled = state.hasTalkedThisRound || state.done || !normalAvailable;
     talkOvertimeBtn.disabled = talkDisabled;
     talkLeaveBtn.disabled = talkDisabled;
     companyTalkTargetEl.disabled = talkDisabled;
   }
 
   function talk(direction) {
-    if (state.hasTalkedThisRound || state.forced || state.done) return;
+    if (state.hasTalkedThisRound || state.done) return;
 
     var target = findCoworker(companyTalkTargetEl.value);
     if (!target || target.type !== "normal") return;
 
     var familiarity = target.familiarity;
     var rationality = target.rationality;
-    var verbalChance = 0.45 + 0.5 * familiarity * (1 - rationality);
-    var actualChance = verbalChance * 0.7;
+    var reputationFactor = state.playerReputation / 100;
+    var verbalChance = 0.35 + 0.5 * familiarity * (1 - rationality) + 0.15 * reputationFactor;
+    var actualChance = verbalChance * (0.5 + 0.4 * reputationFactor);
     var actualRoll = Math.random();
     var verbalRoll = Math.random();
     var directionText = direction === "overtime" ? "加班" : "不加班";
@@ -334,19 +370,47 @@
     return html;
   }
 
+  function updateActionButtons() {
+    var overtimeLabel = overtimeBtn.querySelector(".action-label");
+    var overtimeSub = overtimeBtn.querySelector(".action-sub");
+    var leaveLabel = leaveBtn.querySelector(".action-label");
+    var leaveSub = leaveBtn.querySelector(".action-sub");
+
+    if (isWeekend()) {
+      overtimeLabel.textContent = "工作";
+      overtimeSub.textContent = "工资 +" + WEEKEND_WORK_SALARY + " / 精力 -" + WEEKEND_WORK_ENERGY;
+      leaveLabel.textContent = "休息";
+      leaveSub.textContent = "不加薪 / 恢复 " + REST_ENERGY_MIN + "-" + REST_ENERGY_MAX + " 精力";
+    } else if (state.forced) {
+      overtimeLabel.textContent = "继续（强制加班）";
+      overtimeSub.textContent = "全员必须加班";
+      leaveLabel.textContent = "不可选择";
+      leaveSub.textContent = "加班文化已经形成";
+    } else {
+      overtimeLabel.textContent = "加班";
+      overtimeSub.textContent = "工资 +" + (WEEKDAY_SALARY + OVERTIME_SALARY_BONUS) + " / 精力 -" + (WORK_ENERGY_COST + currentOvertimeCost());
+      leaveLabel.textContent = "不加班";
+      leaveSub.textContent = "工资 +" + WEEKDAY_SALARY + " / 精力 -" + WORK_ENERGY_COST;
+    }
+  }
+
   function render() {
-    companyRoundEl.textContent = state.round + "/" + TOTAL_ROUNDS;
+    companyRoundEl.textContent = "第" + currentWeek() + "周 " + WEEKDAY_NAMES[currentDayIndex()] + "（" + (state.round + 1) + "/" + TOTAL_DAYS + "）";
     companyPlayerEnergyEl.textContent = String(state.playerEnergy);
     companyPlayerSalaryEl.textContent = String(state.playerSalary);
     companyOutputEl.textContent = String(state.companyOutput);
+    companyPlayerReputationEl.textContent = String(state.playerReputation);
     companyPlayerPayoffEl.textContent = state.playerPayoff === null ? "—" : sign(state.playerPayoff);
 
-    if (state.forced) {
-      companyStatusTextEl.textContent = "加班文化已经形成：本轮全员强制加班，个人精力损失更大，但公司产出略微增加。";
+    if (isWeekend()) {
+      companyStatusTextEl.textContent = "周末：你可以选择休息恢复精力，或者继续工作赚取更高工资。";
+    } else if (state.forced) {
+      companyStatusTextEl.textContent = "工作日：加班文化已经形成，全员强制加班。";
     } else {
-      companyStatusTextEl.textContent = "选择这一轮是否加班。你也可以先尝试说服一位同事。";
+      companyStatusTextEl.textContent = "工作日：必须先工作，然后选择是否加班。你也可以先尝试说服一位同事。";
     }
 
+    updateActionButtons();
     renderCoworkers();
     renderCommunication();
 
@@ -356,9 +420,9 @@
       companyUnlockEl.classList.remove("is-hidden");
     } else {
       companyUnlockEl.classList.add("is-hidden");
-      var canChoose = !state.forced;
-      overtimeBtn.disabled = !canChoose;
-      leaveBtn.disabled = !canChoose;
+      var forcedWeekday = !isWeekend() && state.forced;
+      overtimeBtn.disabled = forcedWeekday ? false : false;
+      leaveBtn.disabled = forcedWeekday ? true : false;
     }
   }
 
@@ -425,7 +489,7 @@
 
   function advance() {
     state.round += 1;
-    if (state.round >= TOTAL_ROUNDS) {
+    if (state.round >= TOTAL_DAYS) {
       finish();
     } else {
       state.hasTalkedThisRound = false;
@@ -434,62 +498,46 @@
     }
   }
 
-  function playForcedRound() {
-    var added = addSpecialIfDue();
-    var totalWorkers = workerCount();
-
-    state.playerChoice = "overtime";
-    state.playerPayoff = -2;
-    state.playerEnergy += state.playerPayoff;
-    state.playerRoundSalary = OVERTIME_SALARY;
-    state.playerSalary += state.playerRoundSalary;
-
-    state.coworkers.forEach(function (c) {
-      if (c.fired) return;
-      c.choice = "overtime";
-      c.payoff = -2;
-      c.cumulative += c.payoff;
-      c.salary += OVERTIME_SALARY;
-      c.lastChoice = "overtime";
-      c.playerInfluence = null;
-    });
-
-    state.overtimeCount = totalWorkers;
-    state.companyOutput += totalWorkers * 4;
-    state.lastOvertimeCount = totalWorkers;
-    state.lastWorkerCount = totalWorkers;
-
-    var messages = [];
-    if (added) messages.push(added.name + "（" + added.tag + "）加入了公司。");
-    messages.push("每个人收益 -2，但公司产出增加 " + (totalWorkers * 4) + "。你的工资 +" + state.playerRoundSalary + "。");
-    applySickPenalties(messages);
-
-    showResult("第 " + (state.round + 1) + " 轮：全员强制加班", messages.map(function (m) { return '<p>' + m + '</p>'; }).join(""), "Resources/tired.png");
-    advance();
-  }
-
-  function playRound(playerChoice) {
-    var added = addSpecialIfDue();
-
-    state.playerChoice = playerChoice;
-    state.playerPayoff = playerChoice === "overtime" ? -1 : 0;
-    state.playerEnergy += state.playerPayoff;
-    state.playerRoundSalary = playerChoice === "overtime" ? OVERTIME_SALARY : LEAVE_SALARY;
-    state.playerSalary += state.playerRoundSalary;
-
+  function playCoworkers() {
     var coworkerOvertime = 0;
     state.coworkers.forEach(function (c) {
       if (c.fired) return;
       c.choice = chooseForCoworker(c);
       c.payoff = c.choice === "overtime" ? -1 : 0;
       c.cumulative += c.payoff;
-      c.salary += c.choice === "overtime" ? OVERTIME_SALARY : LEAVE_SALARY;
+      c.salary += c.choice === "overtime" ? AI_OVERTIME_SALARY : AI_LEAVE_SALARY;
       c.lastChoice = c.choice;
       c.playerInfluence = null;
       if (c.choice === "overtime") coworkerOvertime += 1;
     });
+    return coworkerOvertime;
+  }
 
-    var totalOvertime = (playerChoice === "overtime" ? 1 : 0) + coworkerOvertime;
+  function playWeekday(action) {
+    var added = addSpecialIfDue();
+    var forced = state.forced;
+    if (forced) action = "overtime";
+
+    state.playerChoice = action;
+    if (action === "overtime") {
+      var overtimeCost = currentOvertimeCost();
+      state.playerPayoff = -(WORK_ENERGY_COST + overtimeCost);
+      state.playerEnergy += state.playerPayoff;
+      state.playerRoundSalary = WEEKDAY_SALARY + OVERTIME_SALARY_BONUS;
+      state.playerSalary += state.playerRoundSalary;
+      state.overtimeStreak += 1;
+      state.playerReputation = clamp(state.playerReputation + REPUTATION_OVERTIME, 0, 100);
+    } else {
+      state.playerPayoff = -WORK_ENERGY_COST;
+      state.playerEnergy += state.playerPayoff;
+      state.playerRoundSalary = WEEKDAY_SALARY;
+      state.playerSalary += state.playerRoundSalary;
+      state.overtimeStreak = 0;
+      state.playerReputation = clamp(state.playerReputation + REPUTATION_LEAVE, 0, 100);
+    }
+
+    var coworkerOvertime = playCoworkers();
+    var totalOvertime = (action === "overtime" ? 1 : 0) + coworkerOvertime;
     state.overtimeCount = totalOvertime;
     state.companyOutput += totalOvertime * 3;
 
@@ -504,9 +552,61 @@
 
     var messages = [];
     if (added) messages.push(added.name + "（" + added.tag + "）加入了公司。");
-    messages.push("本轮共有 " + totalOvertime + " / " + state.lastWorkerCount + " 人加班。你的工资 +" + state.playerRoundSalary + "。");
-    if (totalOvertime >= OVERTIME_THRESHOLD) {
-      messages.push("加班人数已经足够多，连续达标 " + state.streak + " 轮。");
+    messages.push("今天工作后你选择了" + (action === "overtime" ? "加班" : "不加班") + "，工资 +" + state.playerRoundSalary + "，精力 " + state.playerPayoff + "。");
+    if (action === "overtime") messages.push("你已经连续加班 " + state.overtimeStreak + " 天，下一次加班会更累。");
+
+    applySickPenalties(messages);
+    applyAReporting(messages);
+
+    if (state.communicationLog.length) {
+      messages.push("你的交流：" + state.communicationLog.join("；"));
+    }
+
+    if (state.streak >= CULTURE_STREAK && !state.forced) {
+      state.forced = true;
+      messages.push("加班文化形成：之后的工作日全员强制加班。");
+    }
+
+    var dialogues = buildDialogues();
+    var detailHtml = messages.map(function (m) { return '<p>' + m + '</p>'; }).join("") + dialogueHtml(dialogues);
+
+    var image = action === "overtime" ? "Resources/overwork.png" : "Resources/afterwork.png";
+    showResult("第" + currentWeek() + "周 " + WEEKDAY_NAMES[currentDayIndex()], detailHtml, image);
+    advance();
+  }
+
+  function playWeekend(action) {
+    var added = addSpecialIfDue();
+
+    if (action === "rest") {
+      state.playerChoice = "rest";
+      var restore = REST_ENERGY_MIN + Math.floor(Math.random() * (REST_ENERGY_MAX - REST_ENERGY_MIN + 1));
+      state.playerPayoff = restore;
+      state.playerEnergy += restore;
+      state.playerRoundSalary = 0;
+      state.overtimeStreak = 0;
+      state.playerReputation = clamp(state.playerReputation + REPUTATION_REST, 0, 100);
+    } else {
+      state.playerChoice = "work";
+      state.playerPayoff = -WEEKEND_WORK_ENERGY;
+      state.playerEnergy += state.playerPayoff;
+      state.playerRoundSalary = WEEKEND_WORK_SALARY;
+      state.playerSalary += state.playerRoundSalary;
+      state.companyOutput += 4;
+      state.overtimeStreak = 0;
+      state.playerReputation = clamp(state.playerReputation + REPUTATION_WEEKEND_WORK, 0, 100);
+    }
+
+    var coworkerOvertime = playCoworkers();
+    state.lastOvertimeCount = coworkerOvertime;
+    state.lastWorkerCount = workerCount();
+
+    var messages = [];
+    if (added) messages.push(added.name + "（" + added.tag + "）加入了公司。");
+    if (action === "rest") {
+      messages.push("你选择休息，精力恢复 +" + state.playerPayoff + "，本周不增加工资。");
+    } else {
+      messages.push("你选择周末工作，工资 +" + state.playerRoundSalary + "，精力 " + state.playerPayoff + "。");
     }
 
     applySickPenalties(messages);
@@ -519,20 +619,18 @@
     var dialogues = buildDialogues();
     var detailHtml = messages.map(function (m) { return '<p>' + m + '</p>'; }).join("") + dialogueHtml(dialogues);
 
-    var image = playerChoice === "overtime" ? "Resources/work.png" : "Resources/afterwork.png";
-    showResult("第 " + (state.round + 1) + " 轮结果", detailHtml, image);
-
-    if (state.streak >= CULTURE_STREAK) {
-      state.forced = true;
-      showResult("加班文化形成", "因为加班人数足够多且持续了 " + CULTURE_STREAK + " 轮，从下一轮开始全员强制加班。", "Resources/overwork.png");
-    }
-
+    var image = action === "rest" ? "Resources/energy.png" : "Resources/work.png";
+    showResult("第" + currentWeek() + "周 " + WEEKDAY_NAMES[currentDayIndex()], detailHtml, image);
     advance();
   }
 
-  function choose(playerChoice) {
-    if (state.done || state.forced) return;
-    playRound(playerChoice);
+  function playRound(action) {
+    if (state.done) return;
+    if (isWeekend()) {
+      playWeekend(action);
+    } else {
+      playWeekday(action);
+    }
   }
 
   function startGame() {
@@ -570,8 +668,8 @@
   }
 
   startBtn.addEventListener("click", startGame);
-  overtimeBtn.addEventListener("click", function () { choose("overtime"); });
-  leaveBtn.addEventListener("click", function () { choose("leave"); });
+  overtimeBtn.addEventListener("click", function () { playRound(isWeekend() ? "work" : "overtime"); });
+  leaveBtn.addEventListener("click", function () { playRound(isWeekend() ? "rest" : "leave"); });
   enterBtn.addEventListener("click", enterSandbox);
   talkOvertimeBtn.addEventListener("click", function () { talk("overtime"); });
   talkLeaveBtn.addEventListener("click", function () { talk("leave"); });
