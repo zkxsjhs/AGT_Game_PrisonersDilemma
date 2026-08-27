@@ -19,6 +19,7 @@
         <button class="lesson-tab is-active" data-lesson="1" type="button">第一课 · 群体囚徒困境</button>
         <button class="lesson-tab" data-lesson="2" type="button">第二课 · 多智能体学习</button>
         <button class="lesson-tab" data-lesson="3" type="button">第三课 · 收益驱动学习</button>
+        <button class="lesson-tab" data-lesson="4" type="button">现实情景</button>
       </nav>
     </div>
   </header>
@@ -377,6 +378,81 @@
       </section>
     </section>
 
+    <section id="lesson-4" class="lesson" aria-label="现实情景模式">
+      <section class="lesson-intro scenario-hero">
+        <p class="eyebrow">情景模式</p>
+        <h2>把囚徒困境带进真实生活</h2>
+        <p>
+          选择一个你熟悉的处境，在故事中做出选择。每轮你都会面对“合作”与“不合作”的权衡，
+          就像现实中 996 加不加班、寝室谁先打扫卫生、小组作业谁来动手一样。
+        </p>
+        <p class="lesson-note">完成每个情景后，你会看到背后的博弈论启示。</p>
+      </section>
+
+      <div id="scenario-select">
+        <div id="scenario-list" class="scenario-grid"></div>
+      </div>
+
+      <div id="scenario-play" class="is-hidden">
+        <div id="scenario-intro" class="scenario-intro-panel"></div>
+
+        <section id="scenario-board" class="game-board scenario-board is-hidden">
+          <div class="board-header">
+            <div>
+              <p id="scenario-eyebrow" class="eyebrow">情景关卡</p>
+              <h2 id="scenario-board-title">情景标题</h2>
+            </div>
+            <div class="board-stats">
+              <div class="stat">
+                <span class="stat-label">进度</span>
+                <strong id="scenario-round">0/0</strong>
+              </div>
+              <div class="stat">
+                <span class="stat-label">我的累计收益</span>
+                <strong id="scenario-player-total">0</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="opponents-header">
+            <h3>同局角色</h3>
+            <p id="scenario-roles-hint">观察他们的性格，猜测他们会合作还是搭便车。</p>
+          </div>
+          <div id="scenario-ai-list" class="opponents-grid scenario-ai-list"></div>
+
+          <div class="player-panel">
+            <div class="player-identity">
+              <span class="avatar">你</span>
+              <div>
+                <h3 id="scenario-player-name">你</h3>
+                <p>本轮收益：<strong id="scenario-player-payoff">—</strong></p>
+              </div>
+            </div>
+            <div class="player-actions">
+              <button id="scenario-cooperate-btn" class="action-btn cooperate" type="button">
+                <span class="action-label" id="scenario-cooperate-label">合作</span>
+                <span class="action-sub" id="scenario-cooperate-sub">我 -1 / 其他每位 +3</span>
+              </button>
+              <button id="scenario-defect-btn" class="action-btn defect" type="button">
+                <span class="action-label" id="scenario-defect-label">不合作</span>
+                <span class="action-sub" id="scenario-defect-sub">我 0 / 其他每位 0</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="scenario-result" class="round-result is-hidden" aria-live="polite"></div>
+
+          <div class="board-footer">
+            <button id="scenario-next-btn" class="secondary-btn is-hidden" type="button">下一轮</button>
+            <button id="scenario-finish-btn" class="secondary-btn is-hidden" type="button">查看结局</button>
+            <button id="scenario-back-btn" class="ghost-btn" type="button">重新选择情景</button>
+          </div>
+        </section>
+
+        <div id="scenario-ending" class="scenario-ending-panel is-hidden"></div>
+      </div>
+    </section>
+
   </main>
 
   <footer class="site-footer">
@@ -388,6 +464,7 @@
   <script src="game.js"></script>
   <script src="lesson2.js"></script>
   <script src="lesson3.js"></script>
+  <script src="scenario.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
