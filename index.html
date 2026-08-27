@@ -8,6 +8,70 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div id="start-screen" class="start-screen">
+    <div class="start-card">
+      <p class="eyebrow">博弈论互动游戏</p>
+      <h1 class="start-title">囚徒困境实验室</h1>
+      <p class="start-subtitle">一次关于合作、背叛与现实选择的互动旅程</p>
+      <button id="start-game-btn" class="start-btn" type="button">开始</button>
+      <p class="start-foot">完成公司模拟后，将解锁沙盒实验与情景关卡。</p>
+    </div>
+  </div>
+
+  <div id="company-screen" class="company-screen is-hidden">
+    <div class="company-wrap">
+      <div class="company-header">
+        <div>
+          <p class="eyebrow">主线 · 入职模拟</p>
+          <h2 id="company-title">公司加班模拟</h2>
+        </div>
+        <div class="board-stats">
+          <div class="stat"><span class="stat-label">轮次</span><strong id="company-round">0/6</strong></div>
+          <div class="stat"><span class="stat-label">我的精力</span><strong id="company-player-energy">0</strong></div>
+          <div class="stat"><span class="stat-label">公司产出</span><strong id="company-output">0</strong></div>
+        </div>
+      </div>
+
+      <div class="company-progress">
+        <p id="company-status-text">选择这一轮是否加班。</p>
+      </div>
+
+      <div id="company-coworkers" class="opponents-grid company-coworkers"></div>
+
+      <div id="company-actions" class="player-panel">
+        <div class="player-identity">
+          <span class="avatar">你</span>
+          <div>
+            <h3>你（新员工）</h3>
+            <p>本轮精力：<strong id="company-player-payoff">—</strong></p>
+          </div>
+        </div>
+        <div class="player-actions">
+          <button id="company-overtime-btn" class="action-btn cooperate" type="button">
+            <span class="action-label">加班</span>
+            <span class="action-sub">我 -1 / 公司 +3</span>
+          </button>
+          <button id="company-leave-btn" class="action-btn defect" type="button">
+            <span class="action-label">不加班</span>
+            <span class="action-sub">我 0 / 公司 0</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="company-result" class="round-result is-hidden" aria-live="polite"></div>
+
+      <div id="company-unlock" class="company-unlock is-hidden">
+        <div class="unlock-card">
+          <div class="unlock-icon">🔓</div>
+          <h2>沙盒游戏已解锁</h2>
+          <p>你已经完成公司模拟。现在可以自由进入沙盒实验和现实情景。</p>
+          <button id="company-enter-btn" class="secondary-btn" type="button">进入沙盒游戏</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
   <header class="site-header">
     <div class="wrap">
       <p class="eyebrow">博弈论学习项目</p>
@@ -15,7 +79,7 @@
       <p class="subtitle">
         先理解群体囚徒困境，再看多智能体如何从你的选择中学习。你是<strong>决策者 1</strong>，每一步选择都会影响整个群体。
       </p>
-      <nav class="lesson-nav" aria-label="课程切换">
+      <nav class="lesson-nav is-hidden" aria-label="课程切换">
         <button class="lesson-tab is-active" data-lesson="1" type="button">第一课 · 群体囚徒困境</button>
         <button class="lesson-tab" data-lesson="2" type="button">第二课 · 多智能体学习</button>
         <button class="lesson-tab" data-lesson="3" type="button">第三课 · 收益驱动学习</button>
@@ -465,6 +529,7 @@
   <script src="lesson2.js"></script>
   <script src="lesson3.js"></script>
   <script src="scenario.js"></script>
+  <script src="company.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
