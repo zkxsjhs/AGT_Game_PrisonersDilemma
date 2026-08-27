@@ -3,7 +3,7 @@
 (function () {
   "use strict";
 
-  var TOTAL_ROUNDS = 6;
+  var TOTAL_ROUNDS = 10;
   var OVERTIME_THRESHOLD = 4; // 加班人数达到该值时开始累积“加班文化”
   var CULTURE_STREAK = 2;     // 连续达到阈值的轮数
   var WORKER_COUNT = 6;       // 含玩家
@@ -128,8 +128,10 @@
     }
   }
 
-  function showResult(title, detail) {
+  function showResult(title, detail, image) {
+    var imageHtml = image ? '<div class="result-image"><img src="' + image + '" alt=""></div>' : "";
     companyResultEl.innerHTML =
+      imageHtml +
       '<h3>' + title + '</h3>' +
       '<p>' + detail + '</p>';
     companyResultEl.classList.remove("is-hidden");
@@ -200,11 +202,11 @@
       summary += " 加班人数已经足够多，连续达标 " + state.streak + " 轮。";
     }
 
-    showResult("第 " + (state.round + 1) + " 轮结果", summary);
+    showResult("第 " + (state.round + 1) + " 轮结果", summary, playerChoice === "overtime" ? "Resources/work.png" : "Resources/afterwork.png");
 
     if (state.streak >= CULTURE_STREAK) {
       state.forced = true;
-      showResult("加班文化形成", "因为加班人数足够多且持续了 " + CULTURE_STREAK + " 轮，从下一轮开始全员强制加班。");
+      showResult("加班文化形成", "因为加班人数足够多且持续了 " + CULTURE_STREAK + " 轮，从下一轮开始全员强制加班。", "Resources/overwork.png");
     }
 
     advance();

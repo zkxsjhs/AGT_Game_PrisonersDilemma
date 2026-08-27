@@ -10,6 +10,7 @@
 <body>
   <div id="start-screen" class="start-screen">
     <div class="start-card">
+      <div class="hero-art"><img src="Resources/work.png" alt="工作"></div>
       <p class="eyebrow">博弈论互动游戏</p>
       <h1 class="start-title">囚徒困境实验室</h1>
       <p class="start-subtitle">一次关于合作、背叛与现实选择的互动旅程</p>
@@ -26,9 +27,9 @@
           <h2 id="company-title">公司加班模拟</h2>
         </div>
         <div class="board-stats">
-          <div class="stat"><span class="stat-label">轮次</span><strong id="company-round">0/6</strong></div>
-          <div class="stat"><span class="stat-label">我的精力</span><strong id="company-player-energy">0</strong></div>
-          <div class="stat"><span class="stat-label">公司产出</span><strong id="company-output">0</strong></div>
+          <div class="stat"><span class="stat-label">轮次</span><strong id="company-round">0/10</strong></div>
+          <div class="stat"><span class="stat-icon"><img src="Resources/energy.png" alt=""></span><span class="stat-label">我的精力</span><strong id="company-player-energy">0</strong></div>
+          <div class="stat"><span class="stat-icon"><img src="Resources/coin.png" alt=""></span><span class="stat-label">公司产出</span><strong id="company-output">0</strong></div>
         </div>
       </div>
 
@@ -48,10 +49,12 @@
         </div>
         <div class="player-actions">
           <button id="company-overtime-btn" class="action-btn cooperate" type="button">
+            <span class="action-icon"><img src="Resources/overwork.png" alt=""></span>
             <span class="action-label">加班</span>
             <span class="action-sub">我 -1 / 公司 +3</span>
           </button>
           <button id="company-leave-btn" class="action-btn defect" type="button">
+            <span class="action-icon"><img src="Resources/afterwork.png" alt=""></span>
             <span class="action-label">不加班</span>
             <span class="action-sub">我 0 / 公司 0</span>
           </button>
