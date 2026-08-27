@@ -1441,3 +1441,120 @@ tbody tr:hover {
   border-color: rgba(251, 191, 36, 0.45);
   background: rgba(251, 191, 36, 0.12);
 }
+
+
+/* 主线返回与公司内返回 */
+.nav-action {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  padding: 10px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.92rem;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.nav-action:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.company-back-btn {
+  margin-bottom: 12px;
+}
+
+/* 主动交流面板 */
+.company-communication {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.communication-head h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.communication-head p {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.communication-controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.talk-select {
+  min-width: 160px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-3);
+  color: var(--text);
+  font-family: inherit;
+}
+
+.mini-btn {
+  border: 0;
+  cursor: pointer;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: white;
+}
+
+.mini-btn.cooperate {
+  background: linear-gradient(135deg, var(--cooperate-dark), var(--cooperate));
+}
+
+.mini-btn.defect {
+  background: linear-gradient(135deg, var(--defect-dark), var(--defect));
+}
+
+.mini-btn:disabled,
+.talk-select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.communication-result {
+  margin: 10px 0 0;
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+/* 对话气泡 */
+.dialogue-box {
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-top: 12px;
+}
+
+.dialogue-line {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+
+.dialogue-line strong {
+  color: var(--text);
+}
+
+.employee-tag.resisting {
+  color: #f472b6;
+  border-color: rgba(244, 114, 182, 0.45);
+  background: rgba(244, 114, 182, 0.12);
+}

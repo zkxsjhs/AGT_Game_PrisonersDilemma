@@ -21,6 +21,7 @@
 
   <div id="company-screen" class="company-screen is-hidden">
     <div class="company-wrap">
+      <button id="company-back-sandbox-btn" class="ghost-btn company-back-btn is-hidden" type="button">返回沙盒</button>
       <div class="company-header">
         <div>
           <p class="eyebrow">主线 · 入职模拟</p>
@@ -36,6 +37,19 @@
 
       <div class="company-progress">
         <p id="company-status-text">选择这一轮是否加班。</p>
+      </div>
+
+      <div id="company-communication" class="company-communication">
+        <div class="communication-head">
+          <h3>主动交流</h3>
+          <p>尝试说服一位同事这一轮加班或不加班。</p>
+        </div>
+        <div class="communication-controls">
+          <select id="company-talk-target" class="talk-select"></select>
+          <button id="talk-overtime-btn" class="mini-btn cooperate" type="button">劝加班</button>
+          <button id="talk-leave-btn" class="mini-btn defect" type="button">劝不加班</button>
+        </div>
+        <p id="company-talk-result" class="communication-result">还没有交流。</p>
       </div>
 
       <div id="company-coworkers" class="opponents-grid company-coworkers"></div>
@@ -88,6 +102,7 @@
         <button class="lesson-tab" data-lesson="2" type="button">第二课 · 多智能体学习</button>
         <button class="lesson-tab" data-lesson="3" type="button">第三课 · 收益驱动学习</button>
         <button class="lesson-tab" data-lesson="4" type="button">现实情景</button>
+        <button id="return-company-btn" class="nav-action" type="button">主线模拟</button>
       </nav>
     </div>
   </header>

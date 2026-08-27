@@ -16,13 +16,18 @@
   var A_INFLUENCE = 0.14;
   var A_TARGET_INFLUENCE = 0.22;
   var B_INFLUENCE = 0.14;
+  var LOW_ENERGY_THRESHOLD = -8;
+  var SICK_SALARY_PENALTY = 10;
+  var RESISTANCE_THRESHOLD = 4;
+  var RESISTANCE_BLOCK_CHANCE = 0.6;
+  var FAMILIARITY_GAIN = 0.15;
 
   var COWORKERS = [
-    { name: "老张", bias: 0.75, desc: "老员工，习惯加班", rationality: 0.40 },
-    { name: "小李", bias: 0.55, desc: "看情况，随大流", rationality: 0.60 },
-    { name: "小王", bias: 0.35, desc: "想准点下班", rationality: 0.80 },
-    { name: "小周", bias: 0.25, desc: "能溜就溜", rationality: 0.90 },
-    { name: "阿杰", bias: 0.10, desc: "几乎不加班", rationality: 0.70 }
+    { name: "老张", bias: 0.75, desc: "老员工，习惯加班", rationality: 0.40, familiarity: 0.40 },
+    { name: "小李", bias: 0.55, desc: "看情况，随大流", rationality: 0.60, familiarity: 0.30 },
+    { name: "小王", bias: 0.35, desc: "想准点下班", rationality: 0.80, familiarity: 0.50 },
+    { name: "小周", bias: 0.25, desc: "能溜就溜", rationality: 0.90, familiarity: 0.20 },
+    { name: "阿杰", bias: 0.10, desc: "几乎不加班", rationality: 0.70, familiarity: 0.30 }
   ];
 
   var SPECIALS = {
@@ -47,8 +52,15 @@
   var overtimeBtn = document.getElementById("company-overtime-btn");
   var leaveBtn = document.getElementById("company-leave-btn");
   var enterBtn = document.getElementById("company-enter-btn");
+  var companyTalkTargetEl = document.getElementById("company-talk-target");
+  var talkOvertimeBtn = document.getElementById("talk-overtime-btn");
+  var talkLeaveBtn = document.getElementById("talk-leave-btn");
+  var companyTalkResultEl = document.getElementById("company-talk-result");
+  var returnCompanyBtn = document.getElementById("return-company-btn");
+  var companyBackSandboxBtn = document.getElementById("company-back-sandbox-btn");
   var lessonNav = document.querySelector(".lesson-nav");
 
+  var unlocked = false;
   var state = {};
 
   function makeCoworker(seed) {
@@ -57,6 +69,7 @@
       bias: seed.bias,
       desc: seed.desc,
       rationality: seed.rationality || 0,
+      familiarity: seed.familiarity || 0.3,
       type: "normal",
       tag: null,
       choice: null,
@@ -64,7 +77,9 @@
       salary: 0,
       cumulative: 0,
       leaveCount: 0,
+      leaveDesire: 0,
       reportCount: 0,
+      playerInfluence: null,
       lastChoice: null,
       fired: false
     };
@@ -77,6 +92,7 @@
       bias: 0.5,
       desc: seed.desc,
       rationality: 0,
+      familiarity: 0.2,
       type: seed.type,
       tag: seed.tag,
       choice: null,
@@ -84,7 +100,9 @@
       salary: 0,
       cumulative: 0,
       leaveCount: 0,
+      leaveDesire: 0,
       reportCount: 0,
+      playerInfluence: null,
       lastChoice: null,
       fired: false
     };
@@ -104,6 +122,8 @@
       overtimeCount: 0,
       lastOvertimeCount: null,
       lastWorkerCount: null,
+      hasTalkedThisRound: false,
+      communicationLog: [],
       coworkers: COWORKERS.map(makeCoworker),
       pendingSpecialTypes: ["A", "B", "C"],
       done: false
@@ -117,6 +137,13 @@
   function sign(n) {
     if (n > 0) return "+" + n;
     return String(n);
+  }
+
+  function findCoworker(name) {
+    for (var i = 0; i < state.coworkers.length; i++) {
+      if (state.coworkers[i].name === name) return state.coworkers[i];
+    }
+    return null;
   }
 
   function workerCount() {
@@ -160,6 +187,8 @@
   function chooseForCoworker(c) {
     if (c.fired) return null;
 
+    if (c.playerInfluence) return c.playerInfluence;
+
     if (c.type === "A") return "overtime";
     if (c.type === "B") return "leave";
 
@@ -196,23 +225,113 @@
       if (c.choice === "leave") cardStateClass = "is-defected";
 
       var tagHtml = c.tag ? '<span class="employee-tag type-' + c.type + '">' + c.tag + '</span>' : "";
+      var resistHtml = (c.type === "normal" && c.leaveDesire >= RESISTANCE_THRESHOLD) ? '<span class="employee-tag resisting">抵制中</span>' : "";
 
       html +=
         '<article class="opponent-card agent-card ' + cardStateClass + '">' +
           '<div class="opponent-head">' +
             '<div>' +
-              '<h3 class="opponent-name">' + c.name + ' ' + tagHtml + '</h3>' +
+              '<h3 class="opponent-name">' + c.name + ' ' + tagHtml + ' ' + resistHtml + '</h3>' +
               '<span class="agent-label">' + c.desc + '</span>' +
             '</div>' +
           '</div>' +
           '<div class="agent-stats">' +
             '<div class="agent-stat"><span>本轮选择</span><strong class="scenario-choice">' + (c.choice === null ? "—" : choiceText(c.choice)) + '</strong></div>' +
             '<div class="agent-stat"><span>累计工资</span><strong>' + c.salary + '</strong></div>' +
-            '<div class="agent-stat"><span>本轮精力</span><strong>' + (c.payoff === null ? "—" : sign(c.payoff)) + '</strong></div>' +
+            '<div class="agent-stat"><span>精力</span><strong>' + c.cumulative + '</strong></div>' +
           '</div>' +
         '</article>';
     });
     companyCoworkersEl.innerHTML = html;
+  }
+
+  function renderCommunication() {
+    var options = "";
+    var normalAvailable = false;
+    state.coworkers.forEach(function (c) {
+      if (c.type === "normal" && !c.fired) {
+        normalAvailable = true;
+        options += '<option value="' + c.name + '">' + c.name + '</option>';
+      }
+    });
+    companyTalkTargetEl.innerHTML = options;
+
+    var talkDisabled = state.hasTalkedThisRound || state.forced || state.done || !normalAvailable;
+    talkOvertimeBtn.disabled = talkDisabled;
+    talkLeaveBtn.disabled = talkDisabled;
+    companyTalkTargetEl.disabled = talkDisabled;
+  }
+
+  function talk(direction) {
+    if (state.hasTalkedThisRound || state.forced || state.done) return;
+
+    var target = findCoworker(companyTalkTargetEl.value);
+    if (!target || target.type !== "normal") return;
+
+    var familiarity = target.familiarity;
+    var rationality = target.rationality;
+    var verbalChance = 0.45 + 0.5 * familiarity * (1 - rationality);
+    var actualChance = verbalChance * 0.7;
+    var actualRoll = Math.random();
+    var verbalRoll = Math.random();
+    var directionText = direction === "overtime" ? "加班" : "不加班";
+    var message;
+
+    if (actualRoll < actualChance) {
+      target.playerInfluence = direction;
+      message = target.name + " 真正答应了你的建议：本轮选择" + directionText + "。";
+    } else if (verbalRoll < verbalChance) {
+      target.playerInfluence = null;
+      message = target.name + " 口头答应了，但本轮不一定会真的照做。";
+    } else {
+      target.playerInfluence = null;
+      message = target.name + " 拒绝了你的建议。";
+    }
+
+    target.familiarity = clamp(target.familiarity + FAMILIARITY_GAIN, 0, 1);
+    state.hasTalkedThisRound = true;
+    state.communicationLog.push(message);
+    companyTalkResultEl.textContent = message;
+    renderCommunication();
+  }
+
+  function buildDialogues() {
+    var lines = [];
+
+    if (hasType("A")) {
+      var targets = state.coworkers.filter(function (c) {
+        return c.type === "normal" && !c.fired;
+      }).slice(0, 4);
+
+      targets.forEach(function (c) {
+        lines.push({ speaker: "员工A", text: "对 " + c.name + "：今晚一起加班吧，项目要紧。" });
+        var reply;
+        if (c.choice === "overtime") {
+          reply = "好吧，我加。";
+        } else if (c.rationality >= 0.8) {
+          reply = "不了，我有自己的安排。";
+        } else {
+          reply = "我今天真的有事。";
+        }
+        lines.push({ speaker: c.name, text: reply });
+      });
+    }
+
+    if (hasType("B")) {
+      lines.push({ speaker: "员工B", text: "对大家：我们不该被加班文化绑架，准点下班才是对自己负责。" });
+    }
+
+    return lines;
+  }
+
+  function dialogueHtml(lines) {
+    if (!lines.length) return "";
+    var html = '<div class="dialogue-box">';
+    lines.forEach(function (line) {
+      html += '<div class="dialogue-line"><strong>' + line.speaker + '：</strong>' + line.text + '</div>';
+    });
+    html += '</div>';
+    return html;
   }
 
   function render() {
@@ -225,10 +344,11 @@
     if (state.forced) {
       companyStatusTextEl.textContent = "加班文化已经形成：本轮全员强制加班，个人精力损失更大，但公司产出略微增加。";
     } else {
-      companyStatusTextEl.textContent = "选择这一轮是否加班。";
+      companyStatusTextEl.textContent = "选择这一轮是否加班。你也可以先尝试说服一位同事。";
     }
 
     renderCoworkers();
+    renderCommunication();
 
     if (state.done) {
       companyActionsEl.classList.add("is-hidden");
@@ -247,8 +367,54 @@
     companyResultEl.innerHTML =
       imageHtml +
       '<h3>' + title + '</h3>' +
-      '<p>' + detail + '</p>';
+      '<div class="result-detail">' + detail + '</div>';
     companyResultEl.classList.remove("is-hidden");
+  }
+
+  function applySickPenalties(messages) {
+    if (state.playerEnergy <= LOW_ENERGY_THRESHOLD) {
+      state.playerSalary = Math.max(0, state.playerSalary - SICK_SALARY_PENALTY);
+      messages.push("你精力过低，生病治疗，工资 -" + SICK_SALARY_PENALTY);
+    }
+
+    state.coworkers.forEach(function (c) {
+      if (!c.fired && c.cumulative <= LOW_ENERGY_THRESHOLD) {
+        c.salary = Math.max(0, c.salary - SICK_SALARY_PENALTY);
+        messages.push(c.name + " 精力过低，生病治疗，工资 -" + SICK_SALARY_PENALTY);
+      }
+    });
+  }
+
+  function applyAReporting(messages) {
+    if (!hasType("A")) return;
+
+    state.coworkers.forEach(function (c) {
+      if (c.fired || c.type === "A") return;
+
+      if (c.choice === "leave") {
+        c.leaveCount += 1;
+        c.leaveDesire += 1;
+      }
+
+      while (c.leaveCount >= LEAVE_REPORT_THRESHOLD) {
+        c.leaveCount -= LEAVE_REPORT_THRESHOLD;
+
+        if (c.leaveDesire >= RESISTANCE_THRESHOLD && Math.random() < RESISTANCE_BLOCK_CHANCE) {
+          messages.push(c.name + " 和同事们一起抵制工贼，告发被压下来了。");
+        } else {
+          c.reportCount += 1;
+          c.salary = Math.max(0, c.salary - REPORT_SALARY_PENALTY);
+          messages.push(c.name + " 被工贼告发，工资 -" + REPORT_SALARY_PENALTY);
+        }
+      }
+
+      if (c.reportCount >= FIRE_REPORT_THRESHOLD) {
+        c.fired = true;
+        messages.push(c.name + " 被开除");
+      }
+    });
+
+    state.coworkers = state.coworkers.filter(function (c) { return !c.fired; });
   }
 
   function finish() {
@@ -262,41 +428,10 @@
     if (state.round >= TOTAL_ROUNDS) {
       finish();
     } else {
+      state.hasTalkedThisRound = false;
+      state.communicationLog = [];
       render();
     }
-  }
-
-  function applyAReporting() {
-    var reports = [];
-    var fired = [];
-
-    if (!hasType("A")) return { reports: reports, fired: fired };
-
-    state.coworkers.forEach(function (c) {
-      if (c.fired || c.type === "A") return;
-
-      if (c.choice === "leave") {
-        c.leaveCount += 1;
-      }
-
-      while (c.leaveCount >= LEAVE_REPORT_THRESHOLD) {
-        c.leaveCount -= LEAVE_REPORT_THRESHOLD;
-        c.reportCount += 1;
-        c.salary = Math.max(0, c.salary - REPORT_SALARY_PENALTY);
-        reports.push(c.name + " 被工贼告发，工资 -" + REPORT_SALARY_PENALTY);
-      }
-
-      if (c.reportCount >= FIRE_REPORT_THRESHOLD) {
-        c.fired = true;
-        fired.push(c.name + " 被开除");
-      }
-    });
-
-    if (fired.length > 0) {
-      state.coworkers = state.coworkers.filter(function (c) { return !c.fired; });
-    }
-
-    return { reports: reports, fired: fired };
   }
 
   function playForcedRound() {
@@ -316,6 +451,7 @@
       c.cumulative += c.payoff;
       c.salary += OVERTIME_SALARY;
       c.lastChoice = "overtime";
+      c.playerInfluence = null;
     });
 
     state.overtimeCount = totalWorkers;
@@ -326,8 +462,9 @@
     var messages = [];
     if (added) messages.push(added.name + "（" + added.tag + "）加入了公司。");
     messages.push("每个人收益 -2，但公司产出增加 " + (totalWorkers * 4) + "。你的工资 +" + state.playerRoundSalary + "。");
+    applySickPenalties(messages);
 
-    showResult("第 " + (state.round + 1) + " 轮：全员强制加班", messages.join("<br>"), "Resources/tired.png");
+    showResult("第 " + (state.round + 1) + " 轮：全员强制加班", messages.map(function (m) { return '<p>' + m + '</p>'; }).join(""), "Resources/tired.png");
     advance();
   }
 
@@ -348,6 +485,7 @@
       c.cumulative += c.payoff;
       c.salary += c.choice === "overtime" ? OVERTIME_SALARY : LEAVE_SALARY;
       c.lastChoice = c.choice;
+      c.playerInfluence = null;
       if (c.choice === "overtime") coworkerOvertime += 1;
     });
 
@@ -364,19 +502,25 @@
     state.lastOvertimeCount = totalOvertime;
     state.lastWorkerCount = workerCount();
 
-    var report = applyAReporting();
-
     var messages = [];
     if (added) messages.push(added.name + "（" + added.tag + "）加入了公司。");
     messages.push("本轮共有 " + totalOvertime + " / " + state.lastWorkerCount + " 人加班。你的工资 +" + state.playerRoundSalary + "。");
     if (totalOvertime >= OVERTIME_THRESHOLD) {
       messages.push("加班人数已经足够多，连续达标 " + state.streak + " 轮。");
     }
-    report.reports.forEach(function (m) { messages.push(m); });
-    report.fired.forEach(function (m) { messages.push(m); });
+
+    applySickPenalties(messages);
+    applyAReporting(messages);
+
+    if (state.communicationLog.length) {
+      messages.push("你的交流：" + state.communicationLog.join("；"));
+    }
+
+    var dialogues = buildDialogues();
+    var detailHtml = messages.map(function (m) { return '<p>' + m + '</p>'; }).join("") + dialogueHtml(dialogues);
 
     var image = playerChoice === "overtime" ? "Resources/work.png" : "Resources/afterwork.png";
-    showResult("第 " + (state.round + 1) + " 轮结果", messages.join("<br>"), image);
+    showResult("第 " + (state.round + 1) + " 轮结果", detailHtml, image);
 
     if (state.streak >= CULTURE_STREAK) {
       state.forced = true;
@@ -395,6 +539,18 @@
     resetSimulation();
     startScreen.classList.add("is-hidden");
     companyScreen.classList.remove("is-hidden");
+    companyBackSandboxBtn.classList.toggle("is-hidden", !unlocked);
+    companyUnlockEl.classList.add("is-hidden");
+    companyActionsEl.classList.remove("is-hidden");
+    companyResultEl.classList.add("is-hidden");
+    render();
+  }
+
+  function returnToCompany() {
+    resetSimulation();
+    startScreen.classList.add("is-hidden");
+    companyScreen.classList.remove("is-hidden");
+    companyBackSandboxBtn.classList.remove("is-hidden");
     companyUnlockEl.classList.add("is-hidden");
     companyActionsEl.classList.remove("is-hidden");
     companyResultEl.classList.add("is-hidden");
@@ -417,9 +573,13 @@
   overtimeBtn.addEventListener("click", function () { choose("overtime"); });
   leaveBtn.addEventListener("click", function () { choose("leave"); });
   enterBtn.addEventListener("click", enterSandbox);
+  talkOvertimeBtn.addEventListener("click", function () { talk("overtime"); });
+  talkLeaveBtn.addEventListener("click", function () { talk("leave"); });
+  returnCompanyBtn.addEventListener("click", returnToCompany);
+  companyBackSandboxBtn.addEventListener("click", enterSandbox);
 
-  var unlocked = false;
   try { unlocked = localStorage.getItem("prisoners-dilemma-sandbox-unlocked") === "1"; } catch (e) {}
+
   if (unlocked) {
     alreadyUnlocked();
   } else {
