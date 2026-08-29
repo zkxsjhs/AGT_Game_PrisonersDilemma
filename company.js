@@ -653,7 +653,7 @@
     var dialogues = buildDialogues();
     var detailHtml = messages.map(function (m) { return '<p>' + m + '</p>'; }).join("") + dialogueHtml(dialogues);
 
-    var image = action === "overtime" ? "Resources/overwork.png" : "Resources/afterwork.png";
+    var image = action === "overtime" ? "Resources/extra_work.png" : "Resources/off_duty.png";
     showResult("第" + currentWeek() + "周 " + WEEKDAY_NAMES[currentDayIndex()], detailHtml, image);
     advance();
   }
