@@ -39,11 +39,11 @@
   var WEEKDAY_NAMES = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 
   var COWORKERS = [
-    { name: "老张", bias: 0.75, desc: "老员工，习惯加班", rationality: 0.40, familiarity: 0.40 },
-    { name: "小李", bias: 0.55, desc: "看情况，随大流", rationality: 0.60, familiarity: 0.30 },
-    { name: "小王", bias: 0.35, desc: "想准点下班", rationality: 0.80, familiarity: 0.50 },
-    { name: "小周", bias: 0.25, desc: "能溜就溜", rationality: 0.90, familiarity: 0.20 },
-    { name: "阿杰", bias: 0.10, desc: "几乎不加班", rationality: 0.70, familiarity: 0.30 }
+    { name: "老张", bias: 0.75, desc: "老员工，习惯加班", rationality: 0.40, familiarity: 0.40, proactiveChance: 0.55 },
+    { name: "小李", bias: 0.55, desc: "看情况，随大流", rationality: 0.60, familiarity: 0.30, proactiveChance: 0.40 },
+    { name: "小王", bias: 0.35, desc: "想准点下班", rationality: 0.80, familiarity: 0.50, proactiveChance: 0.35 },
+    { name: "小周", bias: 0.25, desc: "能溜就溜", rationality: 0.90, familiarity: 0.20, proactiveChance: 0.20 },
+    { name: "阿杰", bias: 0.10, desc: "几乎不加班", rationality: 0.70, familiarity: 0.30, proactiveChance: 0.10 }
   ];
 
   var SPECIALS = {
@@ -73,6 +73,13 @@
   var talkOvertimeBtn = document.getElementById("talk-overtime-btn");
   var talkLeaveBtn = document.getElementById("talk-leave-btn");
   var companyTalkResultEl = document.getElementById("company-talk-result");
+  var companyProactiveEl = document.getElementById("company-proactive");
+  var proactiveSpeakerEl = document.getElementById("proactive-speaker");
+  var proactiveTextEl = document.getElementById("proactive-text");
+  var proactiveAgreeBtn = document.getElementById("proactive-agree-btn");
+  var proactiveRefuseBtn = document.getElementById("proactive-refuse-btn");
+  var proactivePretendAgreeBtn = document.getElementById("proactive-pretend-agree-btn");
+  var proactivePretendRefuseBtn = document.getElementById("proactive-pretend-refuse-btn");
   var returnCompanyBtn = document.getElementById("return-company-btn");
   var companyBackSandboxBtn = document.getElementById("company-back-sandbox-btn");
   var lessonNav = document.querySelector(".lesson-nav");
@@ -87,6 +94,7 @@
       desc: seed.desc,
       rationality: seed.rationality || 0,
       familiarity: seed.familiarity || 0.3,
+      proactiveChance: seed.proactiveChance || 0,
       type: "normal",
       tag: null,
       choice: null,
@@ -102,10 +110,11 @@
     };
   }
 
-  function makeSpecial(type) {
+  function makeSpecial(type, count) {
     var seed = SPECIALS[type];
+    var number = count > 1 ? String(count) : "";
     return {
-      name: seed.name,
+      name: seed.name + number,
       bias: 0.5,
       desc: seed.desc,
       rationality: 0,
@@ -144,7 +153,8 @@
       hasTalkedThisRound: false,
       communicationLog: [],
       coworkers: COWORKERS.map(makeCoworker),
-      pendingSpecialTypes: ["A", "B", "C"],
+      specialCounts: { A: 0, B: 0, C: 0 },
+      proactiveEvent: null,
       done: false
     };
   }
@@ -205,16 +215,17 @@
 
   function addSpecialIfDue() {
     var currentRound = state.round + 1;
-    if (currentRound < SPECIAL_ADD_FIRST_ROUND || state.pendingSpecialTypes.length === 0) {
+    if (currentRound < SPECIAL_ADD_FIRST_ROUND) {
       return null;
     }
 
     var shouldAdd = currentRound === SPECIAL_ADD_FIRST_ROUND || Math.random() < SPECIAL_ADD_CHANCE;
     if (!shouldAdd) return null;
 
-    var index = Math.floor(Math.random() * state.pendingSpecialTypes.length);
-    var type = state.pendingSpecialTypes.splice(index, 1)[0];
-    var employee = makeSpecial(type);
+    var types = ["A", "B", "C"];
+    var type = types[Math.floor(Math.random() * types.length)];
+    state.specialCounts[type] += 1;
+    var employee = makeSpecial(type, state.specialCounts[type]);
     state.coworkers.push(employee);
     return employee;
   }
@@ -295,6 +306,75 @@
     talkOvertimeBtn.disabled = talkDisabled;
     talkLeaveBtn.disabled = talkDisabled;
     companyTalkTargetEl.disabled = talkDisabled;
+  }
+
+  function maybeTriggerProactive() {
+    if (state.proactiveEvent) return;
+
+    var candidates = state.coworkers.filter(function (c) {
+      return c.type === "normal" && !c.fired;
+    });
+
+    if (!candidates.length) return;
+
+    var chosen = null;
+    for (var i = 0; i < candidates.length; i++) {
+      var chance = candidates[i].proactiveChance || 0;
+      if (Math.random() < chance) {
+        chosen = candidates[i];
+        break;
+      }
+    }
+
+    if (!chosen) return;
+
+    var text = chosen.bias >= 0.5
+      ? "今晚一起加班吗？我想听听你的真实想法。"
+      : "这轮我想准点下班，你怎么看？";
+
+    state.proactiveEvent = {
+      name: chosen.name,
+      text: text
+    };
+  }
+
+  function renderProactive() {
+    if (state.proactiveEvent && !state.done) {
+      proactiveSpeakerEl.textContent = state.proactiveEvent.name;
+      proactiveTextEl.textContent = state.proactiveEvent.text;
+      companyProactiveEl.classList.remove("is-hidden");
+    } else {
+      companyProactiveEl.classList.add("is-hidden");
+    }
+  }
+
+  function handleProactive(response) {
+    if (!state.proactiveEvent) return;
+
+    var event = state.proactiveEvent;
+    var repChange = 0;
+    var message = "";
+
+    if (response === "agree") {
+      repChange = 2;
+      message = "你真诚同意了 " + event.name + " 的提议，员工好感 +2。";
+    } else if (response === "refuse") {
+      repChange = 0;
+      message = "你真诚拒绝了 " + event.name + " 的提议。";
+    } else if (response === "pretend-agree") {
+      repChange = -3;
+      message = "你假装同意 " + event.name + "，对方感觉到了不真诚，员工好感 -3。";
+    } else if (response === "pretend-refuse") {
+      repChange = -3;
+      message = "你假装拒绝 " + event.name + "，对方感觉到了不真诚，员工好感 -3。";
+    }
+
+    state.playerReputation = clamp(state.playerReputation + repChange, 0, 100);
+    state.communicationLog.push(message);
+    companyTalkResultEl.textContent = message;
+    state.proactiveEvent = null;
+    renderProactive();
+    render();
   }
 
   function talk(direction) {
@@ -413,6 +493,7 @@
     updateActionButtons();
     renderCoworkers();
     renderCommunication();
+    renderProactive();
 
     if (state.done) {
       companyActionsEl.classList.add("is-hidden");
@@ -494,6 +575,8 @@
     } else {
       state.hasTalkedThisRound = false;
       state.communicationLog = [];
+      state.proactiveEvent = null;
+      maybeTriggerProactive();
       render();
     }
   }
@@ -641,6 +724,7 @@
     companyUnlockEl.classList.add("is-hidden");
     companyActionsEl.classList.remove("is-hidden");
     companyResultEl.classList.add("is-hidden");
+    maybeTriggerProactive();
     render();
   }
 
@@ -652,6 +736,7 @@
     companyUnlockEl.classList.add("is-hidden");
     companyActionsEl.classList.remove("is-hidden");
     companyResultEl.classList.add("is-hidden");
+    maybeTriggerProactive();
     render();
   }
 
@@ -667,6 +752,10 @@
     if (lessonNav) lessonNav.classList.remove("is-hidden");
   }
 
+  proactiveAgreeBtn.addEventListener("click", function () { handleProactive("agree"); });
+  proactiveRefuseBtn.addEventListener("click", function () { handleProactive("refuse"); });
+  proactivePretendAgreeBtn.addEventListener("click", function () { handleProactive("pretend-agree"); });
+  proactivePretendRefuseBtn.addEventListener("click", function () { handleProactive("pretend-refuse"); });
   startBtn.addEventListener("click", startGame);
   overtimeBtn.addEventListener("click", function () { playRound(isWeekend() ? "work" : "overtime"); });
   leaveBtn.addEventListener("click", function () { playRound(isWeekend() ? "rest" : "leave"); });
